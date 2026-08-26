@@ -2,9 +2,17 @@ name: Build desktop apps
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to receive the build files
+        required: true
+        type: string
   push:
     tags:
       - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -27,7 +35,19 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run dist:${{ matrix.target }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: quark-share-exporter-${{ matrix.target }}
-          path: release/*
+      - name: Upload packages to GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
+          BUILD_TARGET: ${{ matrix.target }}
+        run: |
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
+            gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --title "$RELEASE_TAG" --generate-notes || \
+            gh release view "$RELEASE_TAG" >/dev/null
+
+          if [ "$BUILD_TARGET" = "mac" ]; then
+            gh release upload "$RELEASE_TAG" release/*.dmg release/*.zip --clobber
+          else
+            gh release upload "$RELEASE_TAG" release/*-Setup-*.exe release/*-Portable-*.exe --clobber
+          fi
