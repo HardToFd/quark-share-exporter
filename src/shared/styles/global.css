@@ -1,0 +1,142 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --bg: #0c0b1b;
+  --surface: rgba(27, 25, 55, 0.82);
+  --surface-strong: #211f44;
+  --surface-soft: rgba(255, 255, 255, 0.045);
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(151, 138, 255, 0.28);
+  --text: #f4f2ff;
+  --muted: #9e9ab9;
+  --purple: #8c7cff;
+  --purple-strong: #6c58e8;
+  --cyan: #53d5e6;
+  --green: #53dfad;
+  --orange: #f3b766;
+  --red: #ff7188;
+  --shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+}
+
+* { box-sizing: border-box; }
+html, body, #root { min-height: 100%; margin: 0; }
+body {
+  min-width: 1060px;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+}
+button, input, select { font: inherit; }
+button { color: inherit; }
+button, select { cursor: pointer; }
+button:disabled, input:disabled, select:disabled { cursor: not-allowed; opacity: 0.55; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border: 3px solid transparent; background-clip: padding-box; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.22); border: 3px solid transparent; background-clip: padding-box; }
+
+.button {
+  appearance: none;
+  border: 0;
+  min-height: 39px;
+  padding: 0 15px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 720;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+.button:not(:disabled):active { transform: translateY(1px) scale(0.99); }
+.button--primary { background: linear-gradient(135deg, #907fff, #6d5be3); box-shadow: 0 9px 24px rgba(108, 88, 232, 0.25); }
+.button--primary:not(:disabled):hover { box-shadow: 0 12px 30px rgba(108, 88, 232, 0.38); transform: translateY(-1px); }
+.button--secondary { background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.1); }
+.button--secondary:not(:disabled):hover, .button--ghost:not(:disabled):hover { background: rgba(255, 255, 255, 0.11); }
+.button--ghost { background: transparent; color: #c1bdd8; }
+.button--danger { background: rgba(255, 113, 136, 0.14); border: 1px solid rgba(255, 113, 136, 0.35); color: #ff9eae; }
+.button--icon { min-width: 38px; padding: 0; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  min-height: 25px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 760;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.badge--neutral { color: #bbb7d1; background: rgba(255, 255, 255, 0.055); border-color: rgba(255, 255, 255, 0.08); }
+.badge--success { color: #80e7c0; background: rgba(83, 223, 173, 0.1); border-color: rgba(83, 223, 173, 0.22); }
+.badge--warning { color: #f6ca8d; background: rgba(243, 183, 102, 0.11); border-color: rgba(243, 183, 102, 0.24); }
+.badge--danger { color: #ff9aaa; background: rgba(255, 113, 136, 0.1); border-color: rgba(255, 113, 136, 0.25); }
+.badge--accent { color: #b8afff; background: rgba(140, 124, 255, 0.11); border-color: rgba(140, 124, 255, 0.25); }
+
+.field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.field__label { font-size: 12px; font-weight: 740; color: #d7d3e8; }
+.field__hint { color: #827e9c; font-size: 11px; line-height: 1.55; }
+.input, .select {
+  width: 100%;
+  height: 42px;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  outline: none;
+  background: rgba(7, 7, 20, 0.44);
+  color: var(--text);
+  padding: 0 13px;
+  font-size: 13px;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+.select { appearance: auto; }
+.input::placeholder { color: #67637e; }
+.input:focus, .select:focus { border-color: rgba(140, 124, 255, 0.65); background: rgba(9, 8, 26, 0.65); box-shadow: 0 0 0 3px rgba(140, 124, 255, 0.1); }
+
+.segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 5px;
+  padding: 5px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(4, 4, 14, 0.33);
+}
+.segmented__item {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  min-height: 48px;
+  border-radius: 10px;
+  color: #9c98b5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 7px 12px;
+  gap: 3px;
+  transition: all 160ms ease;
+}
+.segmented__item > span { font-size: 12px; font-weight: 760; }
+.segmented__item > small { font-size: 10px; color: #77738f; }
+.segmented__item.is-active { color: #f8f6ff; background: linear-gradient(135deg, rgba(140, 124, 255, 0.22), rgba(83, 213, 230, 0.08)); border-color: rgba(151, 138, 255, 0.26); box-shadow: inset 0 1px rgba(255, 255, 255, 0.06); }
+.segmented__item.is-active small { color: #aaa4d4; }
+
+.checkbox { display: flex; gap: 10px; align-items: flex-start; min-width: 0; cursor: pointer; }
+.checkbox input { position: absolute; opacity: 0; pointer-events: none; }
+.checkbox__control { flex: 0 0 auto; width: 19px; height: 19px; margin-top: 1px; border-radius: 6px; display: grid; place-items: center; border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.045); color: white; }
+.checkbox input:checked + .checkbox__control { background: linear-gradient(135deg, #907fff, #6d5be3); border-color: transparent; box-shadow: 0 5px 14px rgba(108, 88, 232, 0.3); }
+.checkbox strong { display: block; font-size: 12px; color: #ddd9ec; line-height: 1.55; }
+.checkbox small { display: block; color: #817d98; font-size: 10px; line-height: 1.45; }
+.checkbox.is-disabled { cursor: not-allowed; opacity: 0.5; }
+
+.spin { animation: spin 900ms linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

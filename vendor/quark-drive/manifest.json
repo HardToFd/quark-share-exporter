@@ -1,0 +1,11 @@
+{
+  "name": "quarkclouddrive official CLI runtime",
+  "skillVersion": "1.0.15",
+  "cliVersion": "1.0.15-1b5a657",
+  "source": "official quarkclouddrive Skill installation",
+  "bundledAt": "2026-08-26",
+  "files": {
+    "scripts/quark-drive.cjs": "5b985b20f9860193ebf7d014e6a13288a6c3cd114dbfb5ac97c98d1851ee2a2b",
+    "scripts/hash-worker.cjs": "d7a934829c238ea9ae6820d4b5ba0fc24a05c1852c40639541c5e949283e9c56"
+  }
+}
