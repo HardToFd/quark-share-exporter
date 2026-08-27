@@ -1,4 +1,4 @@
-import { basename, join } from 'node:path'
+import { basename, join, relative } from 'node:path'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { describe, expect, it } from 'vitest'
@@ -11,12 +11,12 @@ import { WorkflowService } from './workflow'
 describe('local folder workflow', () => {
   it('shares the selected folder FID once while uploading its files as contents', async () => {
     const outputDirectory = await mkdtemp(join(tmpdir(), 'quark-folder-workflow-'))
-    const root = 'C:\\Fixture\\Parent'
+    const root = join(outputDirectory, 'Parent')
     const entries: LocalEntry[] = [
       entry(root, root, 'Parent', 'folder', 0, 0),
-      entry(`${root}\\root.txt`, root, 'root.txt', 'file', 10, 1),
-      entry(`${root}\\Child`, root, 'Child', 'folder', 0, 1),
-      entry(`${root}\\Child\\nested.txt`, root, 'nested.txt', 'file', 20, 2)
+      entry(join(root, 'root.txt'), root, 'root.txt', 'file', 10, 1),
+      entry(join(root, 'Child'), root, 'Child', 'folder', 0, 1),
+      entry(join(root, 'Child', 'nested.txt'), root, 'nested.txt', 'file', 20, 2)
     ]
     const calls: Array<{ command: string; args: string[] }> = []
     const events: WorkflowEvent[] = []
@@ -121,7 +121,7 @@ function entry(
   size: number,
   depth: number
 ): LocalEntry {
-  return { path, rootPath, name, kind, size, relativePath: path.slice(rootPath.length).replace(/^\\/, '') || name, depth }
+  return { path, rootPath, name, kind, size, relativePath: relative(rootPath, path) || name, depth }
 }
 
 function cliResult(data: Record<string, unknown>, action = 'create-folder'): CliRunResult {
