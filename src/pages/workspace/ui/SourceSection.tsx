@@ -1,19 +1,26 @@
-import { CloudCog, FilePlus2, FolderOpen, FolderSearch, LoaderCircle, Search, Trash2, TriangleAlert } from 'lucide-react'
+import { CloudCog, File, FilePlus2, Folder, FolderOpen, FolderSearch, LoaderCircle, Search, Trash2, TriangleAlert } from 'lucide-react'
 import { Badge, Button, Field, Input, Segmented } from '../../../shared/ui/Primitives'
-import { fileNameFromPath, formatBytes, formatDateTime } from '../../../shared/lib/format'
-import type { UploadTarget } from '../../../shared/types/desktop'
+import { formatBytes } from '../../../shared/lib/format'
+import { localPathKey } from '../../../shared/lib/localFolderRules'
+import type { LocalEntry, UploadTarget } from '../../../shared/types/desktop'
 import type { WorkspaceModel } from '../model/useWorkspaceModel'
+import { CloudDriveBrowser } from './CloudDriveBrowser'
 import { StepCard } from './StepCard'
 
 export function SourceSection({ model }: { model: WorkspaceModel }): React.JSX.Element {
   const localFiles = model.localSelection.entries.filter((entry) => entry.kind === 'file')
   const localBytes = localFiles.reduce((sum, entry) => sum + entry.size, 0)
+  const entryByPath = new Map(model.localSelection.entries.map((entry) => [localPathKey(entry.path), entry]))
+  const localRoots = model.localSelection.roots.flatMap((root) => {
+    const entry = entryByPath.get(localPathKey(root))
+    return entry ? [entry] : []
+  })
 
   return (
     <StepCard
       step={1}
       title="选择数据来源"
-      description="上传本机文件，或从网盘检索 artifact 中选择指定目录范围。"
+      description="上传本机文件，或加载网盘项目后直接浏览并选择递归根目录。"
       aside={<Badge tone="accent">{model.sourceMode === 'local' ? '本机 → 网盘' : '网盘目录'}</Badge>}
     >
       <Segmented
@@ -22,7 +29,7 @@ export function SourceSection({ model }: { model: WorkspaceModel }): React.JSX.E
         disabled={model.running}
         options={[
           { value: 'local', label: '本机批量上传', description: '上传后直接使用返回 FID' },
-          { value: 'cloud', label: '网盘指定目录', description: '一次搜索 + 路径树筛选' }
+          { value: 'cloud', label: '网盘指定目录', description: '全盘浏览 + 搜索定位' }
         ]}
       />
 
@@ -42,7 +49,7 @@ export function SourceSection({ model }: { model: WorkspaceModel }): React.JSX.E
               </Button>
             )}
             <div className="source-summary">
-              <strong>{localFiles.length}</strong> 个文件 · {formatBytes(localBytes)}
+              <strong>{localRoots.length}</strong> 个入口 · {localFiles.length} 个文件 · {formatBytes(localBytes)}
             </div>
           </div>
 
@@ -53,38 +60,36 @@ export function SourceSection({ model }: { model: WorkspaceModel }): React.JSX.E
               <TriangleAlert size={16} /> 已跳过 {model.localSelection.skippedSymlinks} 个符号链接，避免循环目录。
             </div>
           )}
-          <PreviewTable
-            rows={localFiles.slice(0, 7).map((entry) => ({
-              name: entry.name,
-              path: entry.relativePath,
-              meta: formatBytes(entry.size),
-              depth: entry.depth
-            }))}
-            empty="还没有选择本机文件。可混合添加多个文件和文件夹。"
-            total={localFiles.length}
-          />
+          <LocalRootList roots={localRoots} entries={model.localSelection.entries} />
         </div>
       ) : (
         <div className="source-pane">
+          <div className="cloud-load-row">
+            <Button onClick={() => void model.loadCloudDrive()} disabled={model.busy === 'scan' || model.running || !model.account.authenticated}>
+              {model.busy === 'scan' ? <LoaderCircle size={16} className="spin" /> : <CloudCog size={16} />}
+              加载网盘
+            </Button>
+            <span>先读取网盘根目录；展开文件夹时按层加载直接子项，不再一次铺开全部后代。</span>
+          </div>
           <div className="cloud-search">
-            <Field label="目录名称或位置描述" hint="官方 search 单次最多返回 3000 条；工具读取完整 artifact，不使用 5 条预览。">
+            <Field label="按关键词补充定位" hint="输入目录名或文件名重新扫描；工具读取完整 artifact，不只使用 5 条预览。">
               <div className="input-action">
                 <Input
                   value={model.cloudQuery}
                   onChange={(event) => model.setCloudQuery(event.target.value)}
-                  placeholder="例如：夸克网盘/项目交付资料 下所有文件"
+                  placeholder="例如：项目交付资料"
                   maxLength={50}
                   disabled={model.running}
                 />
                 <Button onClick={() => void model.scanCloud()} disabled={!model.cloudQuery.trim() || model.busy === 'scan' || model.running}>
                   {model.busy === 'scan' ? <LoaderCircle size={16} className="spin" /> : <Search size={16} />}
-                  扫描
+                  搜索
                 </Button>
               </div>
             </Field>
           </div>
 
-          {model.cloudScan && (
+          {model.cloudScan ? (
             <>
               <div className="scan-result-bar">
                 <div>
@@ -93,49 +98,81 @@ export function SourceSection({ model }: { model: WorkspaceModel }): React.JSX.E
                 </div>
                 <div className="scan-result-bar__badges">
                   <Badge tone={model.cloudScan.artifactAvailable ? 'success' : 'warning'}>
-                    {model.cloudScan.artifactAvailable ? '完整 artifact' : '仅预览数据'}
+                    {model.cloudScan.artifactAvailable ? `${model.cloudScan.returned} 项已加载` : '仅 5 项预览'}
                   </Badge>
-                  {model.cloudScan.truncated && <Badge tone="danger">触及 3000 上限</Badge>}
+                  {model.cloudScan.truncated && <Badge tone="danger">仅加载 {model.cloudScan.returned} / {model.cloudScan.total}</Badge>}
                 </div>
               </div>
 
-              <Field label="作为递归根目录" hint="选择后只保留该路径本身及其后代，并重新计算相对深度。">
-                <div className="input-action">
-                  <select
-                    className="select"
-                    value={model.cloudRootPath}
-                    onChange={(event) => model.setCloudRootPath(event.target.value)}
-                    disabled={model.running}
-                  >
-                    <option value="">全部匹配结果（不限定目录）</option>
-                    {model.cloudScan.folderCandidates.slice(0, 500).map((folder) => (
-                      <option key={folder.fid} value={folder.fullPath}>{folder.fullPath}</option>
-                    ))}
-                  </select>
-                  {model.cloudScan.checkAllLink && (
-                    <Button variant="ghost" onClick={() => void model.openExternal(model.cloudScan!.checkAllLink!)}>
-                      <FolderSearch size={16} /> 网盘中查看
-                    </Button>
-                  )}
-                </div>
-              </Field>
+              {model.cloudScan.checkAllLink && <div className="cloud-external-link"><Button variant="ghost" onClick={() => void model.openExternal(model.cloudScan!.checkAllLink!)}><FolderSearch size={16} /> 在夸克网盘中查看本次结果</Button></div>}
               {model.cloudScan.browseHint && <p className="browse-hint">{model.cloudScan.browseHint}</p>}
-
-              <PreviewTable
-                rows={model.effectiveCloudItems.slice(0, 7).map((entry) => ({
-                  name: entry.name,
-                  path: entry.relativePath || entry.fullPath,
-                  meta: entry.kind === 'folder' ? '文件夹' : `${formatBytes(entry.size)} · ${formatDateTime(entry.updatedAt)}`,
-                  depth: entry.depth
-                }))}
-                empty="当前目录路径下没有匹配项目。请选择其他递归根目录。"
-                total={model.effectiveCloudItems.length}
-              />
             </>
-          )}
+          ) : model.cloudRootLoaded ? (
+            <div className="scan-result-bar">
+              <div><CloudCog size={17} /><span>{model.cloudBrowseMessage}</span></div>
+              <Badge tone="success">按层懒加载</Badge>
+            </div>
+          ) : null}
+
+          {model.cloudItems.length > 0 || model.cloudRootLoaded ? (
+            <CloudDriveBrowser
+              items={model.cloudItems}
+              total={model.cloudScan?.total ?? model.cloudItems.length}
+              truncated={model.cloudScan?.truncated ?? false}
+              hierarchical={model.cloudRootLoaded || model.cloudLoadedFolderFids.size > 0}
+              selectedFid={model.cloudRootFid}
+              disabled={model.running || model.busy === 'scan'}
+              loadedFolderFids={model.cloudLoadedFolderFids}
+              loadingFolderFids={model.cloudLoadingFolderFids}
+              onSelect={model.setCloudRootFid}
+              onExpand={model.loadCloudFolder}
+            />
+          ) : null}
         </div>
       )}
     </StepCard>
+  )
+}
+
+function LocalRootList({ roots, entries }: { roots: LocalEntry[]; entries: LocalEntry[] }): React.JSX.Element {
+  if (roots.length === 0) {
+    return <div className="empty-state"><FolderSearch size={22} /><span>还没有选择本机入口。可混合添加多个文件和文件夹。</span></div>
+  }
+
+  return (
+    <div className="local-root-list">
+      <div className="local-root-list__head">
+        <span>已选入口</span>
+        <span>上传内容</span>
+        <span>默认打链</span>
+      </div>
+      {roots.map((root) => {
+        const descendants = entries.filter((entry) => localPathKey(entry.rootPath) === localPathKey(root.path))
+        const files = descendants.filter((entry) => entry.kind === 'file')
+        const folders = descendants.filter((entry) => entry.kind === 'folder')
+        const bytes = files.reduce((sum, entry) => sum + entry.size, 0)
+        return (
+          <div className="local-root-list__row" key={localPathKey(root.path)}>
+            <span className={`local-root-list__icon is-${root.kind}`}>
+              {root.kind === 'folder' ? <Folder size={17} /> : <File size={17} />}
+            </span>
+            <div className="local-root-list__identity">
+              <strong>{root.name}</strong>
+              <span title={root.path}>{root.path}</span>
+            </div>
+            <span className="local-root-list__contents">
+              {root.kind === 'folder'
+                ? `${Math.max(0, folders.length - 1)} 个子目录 · ${files.length} 个文件 · ${formatBytes(bytes)}`
+                : formatBytes(root.size)}
+            </span>
+            <Badge tone={root.kind === 'folder' ? 'accent' : 'neutral'}>
+              {root.kind === 'folder' ? '根目录 1 条' : '文件 1 条'}
+            </Badge>
+          </div>
+        )
+      })}
+      <div className="local-root-list__note">文件夹内部会保持原目录结构上传；只有步骤 2 选中的目录节点会生成分享链。</div>
+    </div>
   )
 }
 
@@ -170,32 +207,6 @@ function UploadTargetEditor({
           <Input value={target.fid} onChange={(event) => onChange({ mode: 'fid', fid: event.target.value })} placeholder="粘贴目录 FID" disabled={disabled} />
         </Field>
       )}
-    </div>
-  )
-}
-
-function PreviewTable({
-  rows,
-  empty,
-  total
-}: {
-  rows: Array<{ name: string; path: string; meta: string; depth: number }>
-  empty: string
-  total: number
-}): React.JSX.Element {
-  if (rows.length === 0) return <div className="empty-state"><FolderSearch size={22} /><span>{empty}</span></div>
-  return (
-    <div className="preview-table">
-      <div className="preview-table__head"><span>项目</span><span>路径</span><span>信息</span><span>深度</span></div>
-      {rows.map((row, index) => (
-        <div className="preview-table__row" key={`${row.path}-${index}`}>
-          <strong>{row.name || fileNameFromPath(row.path)}</strong>
-          <span title={row.path}>{row.path}</span>
-          <span>{row.meta}</span>
-          <Badge tone="neutral">L{row.depth}</Badge>
-        </div>
-      ))}
-      {total > rows.length && <div className="preview-table__more">另有 {total - rows.length} 项将在任务中处理</div>}
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
+  CloudListRequest,
   CloudScanRequest,
   DesktopBridge,
   WorkflowEvent,
@@ -13,6 +14,7 @@ const bridge: DesktopBridge = {
   pickLocalEntries: (kind) => ipcRenderer.invoke('local:pick', kind),
   pickOutputDirectory: () => ipcRenderer.invoke('output:pick'),
   scanCloud: (request: CloudScanRequest) => ipcRenderer.invoke('cloud:scan', request),
+  listCloudFolder: (request: CloudListRequest) => ipcRenderer.invoke('cloud:list', request),
   startWorkflow: (request: WorkflowRequest) => ipcRenderer.invoke('workflow:start', request),
   cancelWorkflow: (jobId: string) => ipcRenderer.invoke('workflow:cancel', jobId),
   openExternal: (url: string) => ipcRenderer.invoke('external:open', url),

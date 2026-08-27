@@ -1,22 +1,27 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type {
+  CloudListRequest,
   CloudScanRequest,
   WorkflowEvent,
   WorkflowRequest
 } from '../../src/shared/types/desktop'
 import { pickLocalEntries } from '../services/localFiles'
 import { QuarkCliRunner } from '../services/quarkCli'
+import { prepareUserQuarkRuntime } from '../services/quarkRuntime'
 import { QuarkService } from '../services/quarkService'
 import { WorkflowService } from '../services/workflow'
 
 let mainWindow: BrowserWindow | null = null
 const smokeMode = process.argv.includes('--smoke-test')
 
-function runtimeRoot(): string {
-  return app.isPackaged
+async function runtimeRoot(): Promise<string> {
+  const bundledRoot = app.isPackaged
     ? join(process.resourcesPath, 'quark-drive')
     : join(app.getAppPath(), 'vendor', 'quark-drive')
+
+  if (!app.isPackaged) return bundledRoot
+  return prepareUserQuarkRuntime(bundledRoot, join(app.getPath('userData'), 'quark-drive'))
 }
 
 function createWindow(): BrowserWindow {
@@ -67,8 +72,8 @@ function createWindow(): BrowserWindow {
   return window
 }
 
-function registerIpc(): void {
-  const runner = new QuarkCliRunner(runtimeRoot())
+function registerIpc(quarkRuntimeRoot: string): void {
+  const runner = new QuarkCliRunner(quarkRuntimeRoot)
   const activity = (message: string): void => {
     if (message.trim()) mainWindow?.webContents.send('quark:activity', message)
   }
@@ -90,6 +95,7 @@ function registerIpc(): void {
     return result.canceled ? null : result.filePaths[0]
   })
   ipcMain.handle('cloud:scan', (_event, request: CloudScanRequest) => quark.scanCloud(request))
+  ipcMain.handle('cloud:list', (_event, request: CloudListRequest) => quark.listCloudFolder(request))
   ipcMain.handle('workflow:start', (_event, request: WorkflowRequest) => ({
     jobId: workflow.start(request)
   }))
@@ -112,14 +118,18 @@ function isSafeExternalUrl(value: string): boolean {
   }
 }
 
-app.whenReady().then(() => {
+void app.whenReady().then(async () => {
   app.setAppUserModelId('com.local.quarkshareexporter')
-  registerIpc()
+  registerIpc(await runtimeRoot())
   mainWindow = createWindow()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()
   })
+}).catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : '未知错误'
+  dialog.showErrorBox('夸克分享链批量导出启动失败', `无法准备官方 CLI 运行环境：${message}`)
+  app.quit()
 })
 
 app.on('window-all-closed', () => {

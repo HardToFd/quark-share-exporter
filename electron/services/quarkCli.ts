@@ -4,6 +4,35 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { NdjsonAccumulator, type CliEnvelope } from './ndjson'
 
+const CLOUD_LIST_BOOTSTRAP = `
+const fs=require('node:fs')
+const path=require('node:path')
+const Module=require('node:module')
+const scriptPath=process.argv[1]
+if(!scriptPath)throw new Error('Missing verified CLI script path')
+process.argv=[process.execPath,scriptPath,...process.argv.slice(2)]
+let source=fs.readFileSync(scriptPath,'utf8')
+const patches=[
+  ['.option("--category <number>"','.option("--parent-fid <fid>","父目录 FID").option("--cursor <token>","分页游标").option("--category <number>"'],
+  ['let l={keyword:r,size:n};','let l={keyword:r,size:n,parent_fid:e.parentFid,query_cursor:e.cursor};'],
+  ['category:e.category,page:e.page}','category:e.category,page:e.page,parent_fid:e.parent_fid,query_cursor:e.query_cursor}'],
+  ['a=[...i].slice(0,5)','a=[...i]'],
+  ['let u=c.data?.file_list??[]','globalThis.__quarkListMeta={last_page:c.data?.last_page??true,next_query_cursor:c.data?.next_query_cursor??null};let u=c.data?.file_list??[]'],
+  ['l={total:t,file_list:a};','l={total:t,file_list:a,...globalThis.__quarkListMeta};'],
+  ['let t="/agent/v1/file/search",r=this.buildUrl(t)','let t="/open/v1/file/list",r=this.buildUrlWithParams(t,{fr:"ucpro-pc"})'],
+  ['o={search_type:"mix",...e};return','o={parent_fid:e.parent_fid||"0",size:e.size||50,sort:"file_type:asc,updated_at:desc",fetch_total:1,...(e.query_cursor?{query_cursor:e.query_cursor}:{})};return']
+]
+for(const [from,to] of patches){
+  const count=source.split(from).length-1
+  if(count!==1)throw new Error('Unsupported official CLI search layout')
+  source=source.replace(from,to)
+}
+const runner=new Module(scriptPath,module)
+runner.filename=scriptPath
+runner.paths=Module._nodeModulePaths(path.dirname(scriptPath))
+runner._compile(source,scriptPath)
+`.trim()
+
 interface RuntimeManifest {
   skillVersion: string
   cliVersion: string
@@ -62,7 +91,38 @@ export class QuarkCliRunner {
 
   async run(command: string, args: string[], options: CliRunOptions): Promise<CliRunResult> {
     const runtime = await this.verifyRuntime()
-    const commandArgs = [runtime.scriptPath, command, ...args]
+    return this.execute([runtime.scriptPath, command, ...args], runtime, options)
+  }
+
+  async listCloudFolderPage(
+    parentFid: string,
+    cursor: string | undefined,
+    options: CliRunOptions
+  ): Promise<CliRunResult> {
+    const runtime = await this.verifyRuntime()
+    const commandArgs = [
+      '-e',
+      CLOUD_LIST_BOOTSTRAP,
+      runtime.scriptPath,
+      'search',
+      '--keyword',
+      '*',
+      '--size',
+      '50',
+      '--parent-fid',
+      parentFid,
+      '--stdout-only'
+    ]
+    if (cursor) commandArgs.push('--cursor', cursor)
+    return this.execute(commandArgs, runtime, options)
+  }
+
+  private async execute(
+    baseArgs: string[],
+    runtime: VerifiedRuntime,
+    options: CliRunOptions
+  ): Promise<CliRunResult> {
+    const commandArgs = [...baseArgs]
     if (options.sessionInput) commandArgs.push('--session-input', options.sessionInput)
     commandArgs.push('--session-id', options.sessionId)
 

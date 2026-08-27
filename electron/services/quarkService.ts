@@ -2,6 +2,8 @@ import { createReadStream } from 'node:fs'
 import { createInterface } from 'node:readline'
 import type {
   AccountInfo,
+  CloudListRequest,
+  CloudListResult,
   CloudScanRequest,
   CloudScanResult,
   LoginResult,
@@ -12,6 +14,7 @@ import {
   createSessionId,
   extractAuthorizationUrl,
   isAuthenticationError,
+  normalizeCloudListItems,
   normalizeCloudItems,
   type RawCloudItem
 } from './quarkData'
@@ -121,12 +124,13 @@ export class QuarkService {
     const allNormalized = normalizeCloudItems(rawItems)
     const filtered = normalizeCloudItems(rawItems, request.pathPrefix)
     const total = pickNumber(resultData, ['total']) ?? rawItems.length
+    const truncated = total > rawItems.length
 
     return {
       query,
       total,
       returned: filtered.length,
-      truncated: total >= 3000,
+      truncated,
       items: filtered,
       folderCandidates: allNormalized.filter((item) => item.kind === 'folder'),
       artifactAvailable: Boolean(artifactPath),
@@ -135,7 +139,73 @@ export class QuarkService {
       message:
         total === 0
           ? `未找到与“${query}”匹配的目录或文件`
-          : `检索返回 ${total} 项，路径范围内 ${filtered.length} 项`
+          : truncated
+            ? `官方接口共匹配 ${total} 项，本次已加载 ${rawItems.length} 项`
+            : `已加载全部 ${rawItems.length} 项`
+    }
+  }
+
+  async listCloudFolder(request: CloudListRequest): Promise<CloudListResult> {
+    const parentFid = request.parentFid.trim()
+    if (!parentFid || parentFid.length > 512) throw new Error('网盘父目录 FID 无效')
+    if (request.parentPath.length > 4_000) throw new Error('网盘目录路径过长')
+    if (request.ancestorFids.length > 100 || request.ancestorFids.some((fid) => !fid || fid.length > 512)) {
+      throw new Error('网盘目录层级无效')
+    }
+
+    const sessionId = createSessionId()
+    const jobId = `cloud-list-${Date.now()}`
+    const rawItems: RawCloudItem[] = []
+    const seenCursors = new Set<string>()
+    let cursor: string | undefined
+    let pageCount = 0
+    let complete = false
+
+    while (pageCount < 200) {
+      const run = await this.runCloudListAuthorized(parentFid, cursor, {
+        jobId,
+        sessionId,
+        sessionInput: '逐层浏览网盘目录',
+        onLog: this.activity
+      })
+      const result = run.result
+      if (!result || result.code !== 0) {
+        throw new Error(result?.msg || run.stderr || '读取网盘目录失败')
+      }
+
+      const data = result.data && typeof result.data === 'object'
+        ? result.data as Record<string, unknown>
+        : {}
+      const pageItems = ((data.file_list as RawCloudItem[] | undefined) ?? []) as RawCloudItem[]
+      rawItems.push(...pageItems)
+      pageCount += 1
+
+      const nextCursor = pickString(data, ['next_query_cursor'])
+      const lastPage = data.last_page !== false
+      if (lastPage || !nextCursor) {
+        complete = true
+        break
+      }
+      if (seenCursors.has(nextCursor)) throw new Error('网盘目录分页游标重复，已停止读取')
+      seenCursors.add(nextCursor)
+      cursor = nextCursor
+      this.activity(`正在加载目录下一页（已读取 ${rawItems.length} 项）`)
+    }
+
+    if (!complete) throw new Error('网盘目录分页超过安全上限')
+    const uniqueItems = [...new Map(rawItems.map((item) => [String(item.fid ?? ''), item])).values()]
+      .filter((item) => Boolean(item.fid))
+    const items = normalizeCloudListItems(uniqueItems, {
+      parentFid,
+      parentPath: request.parentPath,
+      ancestorFids: request.ancestorFids
+    })
+
+    return {
+      parentFid,
+      items,
+      pageCount,
+      message: `已读取 ${request.parentPath || '网盘根目录'} 的 ${items.length} 个直接子项`
     }
   }
 
@@ -152,6 +222,21 @@ export class QuarkService {
     if (!authenticated) return first
     this.activity('授权成功，正在继续刚才的操作')
     return this.runner.run(command, args, options)
+  }
+
+  private async runCloudListAuthorized(
+    parentFid: string,
+    cursor: string | undefined,
+    options: CliRunOptions
+  ): Promise<CliRunResult> {
+    const first = await this.runner.listCloudFolderPage(parentFid, cursor, options)
+    if (!isAuthenticationError(first.result?.msg ?? first.stderr, first.result?.code)) return first
+
+    this.activity(first.result?.msg || '当前授权无效，正在打开夸克网盘授权页')
+    const authenticated = await this.authenticateOnce()
+    if (!authenticated) return first
+    this.activity('授权成功，正在继续读取网盘目录')
+    return this.runner.listCloudFolderPage(parentFid, cursor, options)
   }
 
   private async authenticateOnce(): Promise<boolean> {

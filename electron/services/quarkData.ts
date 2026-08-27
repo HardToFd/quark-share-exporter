@@ -20,6 +20,12 @@ export interface RawCloudItem {
   updated_at?: unknown
 }
 
+export interface CloudListContext {
+  parentFid: string
+  parentPath: string
+  ancestorFids: string[]
+}
+
 export interface UploadSuccess {
   fid: string
   fileName: string
@@ -52,23 +58,51 @@ function asString(value: unknown): string {
 
 export function normalizeCloudItems(rawItems: RawCloudItem[], pathPrefix = ''): CloudEntry[] {
   const normalizedPrefix = normalizeCloudPath(pathPrefix)
-
-  return rawItems
-    .map((item): CloudEntry | null => {
+  const prepared = rawItems
+    .map((item) => {
       const fid = asString(item.fid)
       const name = asString(item.filename) || asString(item.file)
       if (!fid || !name) return null
 
       const rawPath = normalizeCloudPath(asString(item.path))
-      const fullPath =
-        rawPath === name || rawPath.endsWith(`/${name}`)
-          ? rawPath
-          : normalizeCloudPath([rawPath, name].filter(Boolean).join('/'))
+      const ancestorFids = rawPath.includes(',')
+        ? rawPath.split(',').map((part) => part.trim()).filter((part) => part && part !== '0')
+        : []
       const isFolder = asString(item.file_type) === '0' || asNumber(item.category, -1) === 0
       const category = Number(item.category)
 
+      return {
+        fid,
+        name,
+        kind: isFolder ? 'folder' as const : 'file' as const,
+        category: Number.isFinite(category) ? category : undefined,
+        size: asNumber(item.size),
+        parentFid: asString(item.parent_fid) || undefined,
+        ancestorFids,
+        rawPath,
+        updatedAt: asNumber(item.updated_at) || undefined
+      }
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+  const byFid = new Map(prepared.map((item) => [item.fid, item]))
+
+  return prepared
+    .map((item): CloudEntry | null => {
+      const knownAncestors = item.ancestorFids.flatMap((fid) => {
+        const ancestor = byFid.get(fid)
+        return ancestor ? [ancestor.name] : []
+      })
+      const hasUnknownAncestor = knownAncestors.length < item.ancestorFids.length
+      const fullPath = item.ancestorFids.length > 0
+        ? [hasUnknownAncestor ? '…' : '', ...knownAncestors, item.name].filter(Boolean).join('/')
+        : item.rawPath === item.name || item.rawPath.endsWith(`/${item.name}`)
+          ? item.rawPath
+          : normalizeCloudPath([item.rawPath, item.name].filter(Boolean).join('/'))
+
       let relativePath = fullPath
-      let depth = Math.max(0, fullPath.split('/').filter(Boolean).length - 1)
+      let depth = item.ancestorFids.length > 0
+        ? item.ancestorFids.length
+        : Math.max(0, fullPath.split('/').filter(Boolean).length - 1)
       if (normalizedPrefix) {
         if (fullPath === normalizedPrefix) {
           relativePath = ''
@@ -82,20 +116,53 @@ export function normalizeCloudItems(rawItems: RawCloudItem[], pathPrefix = ''): 
       }
 
       return {
-        fid,
-        name,
-        kind: isFolder ? 'folder' : 'file',
-        category: Number.isFinite(category) ? category : undefined,
-        size: asNumber(item.size),
-        parentFid: asString(item.parent_fid) || undefined,
-        path: rawPath,
+        fid: item.fid,
+        name: item.name,
+        kind: item.kind,
+        category: item.category,
+        size: item.size,
+        parentFid: item.parentFid,
+        ancestorFids: item.ancestorFids,
+        path: item.rawPath,
         fullPath,
         relativePath,
         depth,
-        updatedAt: asNumber(item.updated_at) || undefined
+        updatedAt: item.updatedAt
       }
     })
     .filter((item): item is CloudEntry => item !== null)
+}
+
+export function normalizeCloudListItems(rawItems: RawCloudItem[], context: CloudListContext): CloudEntry[] {
+  const parentPath = normalizeCloudPath(context.parentPath)
+  const ancestorFids = context.ancestorFids.filter(Boolean)
+
+  return rawItems.flatMap((item): CloudEntry[] => {
+    const fid = asString(item.fid)
+    const name = asString(item.filename) || asString(item.file)
+    if (!fid || !name) return []
+
+    const category = Number(item.category)
+    const kind = asString(item.file_type) === '0' || asNumber(item.category, -1) === 0
+      ? 'folder' as const
+      : 'file' as const
+    const fullPath = normalizeCloudPath([parentPath, name].filter(Boolean).join('/'))
+
+    return [{
+      fid,
+      name,
+      kind,
+      category: Number.isFinite(category) ? category : undefined,
+      size: asNumber(item.size),
+      parentFid: context.parentFid,
+      ancestorFids: [...ancestorFids],
+      path: fullPath,
+      fullPath,
+      relativePath: fullPath,
+      depth: ancestorFids.length,
+      updatedAt: asNumber(item.updated_at) || undefined
+    }]
+  })
 }
 
 export function selectByScope<T extends { kind: 'file' | 'folder'; depth: number }>(

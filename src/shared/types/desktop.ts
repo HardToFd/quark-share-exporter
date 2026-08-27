@@ -24,11 +24,17 @@ export interface AccountInfo {
 
 export interface LocalEntry {
   path: string
+  rootPath: string
   name: string
   kind: ItemKind
   size: number
   relativePath: string
   depth: number
+}
+
+export interface LocalFolderRule {
+  path: string
+  maxDepth: number | null
 }
 
 export interface CloudEntry {
@@ -38,6 +44,7 @@ export interface CloudEntry {
   category?: number
   size: number
   parentFid?: string
+  ancestorFids?: string[]
   path: string
   fullPath: string
   relativePath: string
@@ -66,6 +73,19 @@ export interface CloudScanResult {
   artifactAvailable: boolean
   checkAllLink?: string
   browseHint?: string
+  message: string
+}
+
+export interface CloudListRequest {
+  parentFid: string
+  parentPath: string
+  ancestorFids: string[]
+}
+
+export interface CloudListResult {
+  parentFid: string
+  items: CloudEntry[]
+  pageCount: number
   message: string
 }
 
@@ -102,6 +122,7 @@ export type WorkflowSource =
       mode: 'local'
       roots: string[]
       localEntries: LocalEntry[]
+      folderRules: LocalFolderRule[]
       uploadTarget: UploadTarget
     }
   | {
@@ -186,6 +207,7 @@ export interface DesktopBridge {
   pickLocalEntries(kind: 'files' | 'folder'): Promise<LocalSelection | null>
   pickOutputDirectory(): Promise<string | null>
   scanCloud(request: CloudScanRequest): Promise<CloudScanResult>
+  listCloudFolder(request: CloudListRequest): Promise<CloudListResult>
   startWorkflow(request: WorkflowRequest): Promise<{ jobId: string }>
   cancelWorkflow(jobId: string): Promise<boolean>
   openExternal(url: string): Promise<void>

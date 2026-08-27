@@ -15,7 +15,7 @@ export function RunDock({ model }: { model: WorkspaceModel }): React.JSX.Element
       {model.running ? (
         <Button variant="danger" onClick={() => void model.cancel()}><Square size={15} />停止任务</Button>
       ) : (
-        <Button className="button--run" onClick={() => void model.start()}>
+        <Button className="button--run" onClick={() => void model.start()} disabled={Boolean(model.busy)}>
           {model.busy ? <LoaderCircle size={17} className="spin" /> : <Play size={17} fill="currentColor" />}
           一键开始
         </Button>

@@ -120,7 +120,13 @@ async function writeWorkbook(
     ['分享方式', request.share.granularity === 'per-item' ? '逐项分享' : '合并分享'],
     ['链接类型', request.share.visibility === 'public' ? '公开链接' : '私密链接（服务端提取码）'],
     ['有效期类型', request.share.expiryType],
-    ['最大递归深度', request.scope.maxDepth ?? '不限'],
+    ['最大递归深度', request.source.mode === 'local' ? '按目录节点独立设置' : request.scope.maxDepth ?? '不限'],
+    [
+      '本机目录规则',
+      request.source.mode === 'local'
+        ? request.source.folderRules.map((rule) => `${rule.path}：${rule.maxDepth === null ? '全部后代' : `L${rule.maxDepth}`}`).join('\n') || '仅显式添加的文件'
+        : '不适用'
+    ],
     ['检索是否触顶', request.source.mode === 'cloud' && request.source.searchTruncated ? '是，可能不完整' : '否']
   ]
   summary.addRows(summaryRows)

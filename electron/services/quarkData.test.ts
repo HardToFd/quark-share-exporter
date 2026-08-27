@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { mapUploadSuccesses, normalizeCloudItems, selectByScope } from './quarkData'
+import {
+  mapUploadSuccesses,
+  normalizeCloudItems,
+  normalizeCloudListItems,
+  selectByScope
+} from './quarkData'
 
 describe('cloud item normalization', () => {
   it('filters by exact path prefix and computes depth', () => {
@@ -32,14 +37,57 @@ describe('cloud item normalization', () => {
     )
     expect(selected).toEqual([{ kind: 'file', depth: 1 }])
   })
+
+  it('uses FID ancestry without exposing opaque path tokens as a display path', () => {
+    const items = normalizeCloudItems([
+      { fid: 'folder', filename: '项目', file_type: '0', category: 0, path: '0' },
+      { fid: 'file', filename: '交付.pdf', file_type: '1', category: 4, path: '0,folder', parent_fid: 'folder' }
+    ])
+
+    expect(items[1]).toMatchObject({ fullPath: '项目/交付.pdf', ancestorFids: ['folder'], depth: 1 })
+  })
+
+  it('builds one-level list paths from the selected parent context', () => {
+    const items = normalizeCloudListItems(
+      [
+        { fid: 'template', filename: 'ModTemplate', file_type: '0', category: 0 },
+        { fid: 'doc', filename: 'Documentation.txt', file_type: '1', category: 4, size: 54 }
+      ],
+      {
+        parentFid: 'mods',
+        parentPath: '来自：Codex/Mods',
+        ancestorFids: ['codex', 'mods']
+      }
+    )
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        fid: 'template',
+        parentFid: 'mods',
+        ancestorFids: ['codex', 'mods'],
+        fullPath: '来自：Codex/Mods/ModTemplate',
+        depth: 2,
+        kind: 'folder'
+      }),
+      expect.objectContaining({
+        fid: 'doc',
+        parentFid: 'mods',
+        ancestorFids: ['codex', 'mods'],
+        fullPath: '来自：Codex/Mods/Documentation.txt',
+        depth: 2,
+        kind: 'file',
+        size: 54
+      })
+    ])
+  })
 })
 
 describe('upload mapping', () => {
   it('marks duplicate name and size matches as ambiguous', () => {
     const mapped = mapUploadSuccesses(
       [
-        { path: 'C:/a/report.pdf', name: 'report.pdf', kind: 'file', size: 10, relativePath: 'a/report.pdf', depth: 2 },
-        { path: 'C:/b/report.pdf', name: 'report.pdf', kind: 'file', size: 10, relativePath: 'b/report.pdf', depth: 2 }
+        { path: 'C:/a/report.pdf', rootPath: 'C:/a', name: 'report.pdf', kind: 'file', size: 10, relativePath: 'a/report.pdf', depth: 2 },
+        { path: 'C:/b/report.pdf', rootPath: 'C:/b', name: 'report.pdf', kind: 'file', size: 10, relativePath: 'b/report.pdf', depth: 2 }
       ],
       [
         { fid: '1', fileName: 'report.pdf', fileSize: 10 },

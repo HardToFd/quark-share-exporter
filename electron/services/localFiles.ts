@@ -30,11 +30,12 @@ export async function inventoryPaths(roots: string[]): Promise<LocalSelection> {
     if (rootStats.isFile()) {
       entries.push({
         path: root,
+        rootPath: root,
         name: basename(root),
         kind: 'file',
         size: rootStats.size,
         relativePath: basename(root),
-        depth: 1
+        depth: 0
       })
       continue
     }
@@ -43,6 +44,7 @@ export async function inventoryPaths(roots: string[]): Promise<LocalSelection> {
     const rootName = basename(root)
     entries.push({
       path: root,
+      rootPath: root,
       name: rootName,
       kind: 'folder',
       size: 0,
@@ -68,6 +70,7 @@ export async function inventoryPaths(roots: string[]): Promise<LocalSelection> {
         if (stats.isDirectory()) {
           entries.push({
             path: absolutePath,
+            rootPath: root,
             name: child.name,
             kind: 'folder',
             size: 0,
@@ -78,6 +81,7 @@ export async function inventoryPaths(roots: string[]): Promise<LocalSelection> {
         } else if (stats.isFile()) {
           entries.push({
             path: absolutePath,
+            rootPath: root,
             name: child.name,
             kind: 'file',
             size: stats.size,

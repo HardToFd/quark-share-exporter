@@ -4,17 +4,31 @@ export function normalizePath(value: string): string {
   return value.replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/^\/+|\/+$/g, '')
 }
 
-export function rebaseCloudItems(items: CloudEntry[], rootPath: string): CloudEntry[] {
-  const root = normalizePath(rootPath)
-  if (!root) return items
+export function rebaseCloudItems(items: CloudEntry[], rootFid: string): CloudEntry[] {
+  if (!rootFid) return items
+  const byFid = new Map(items.map((item) => [item.fid, item]))
 
   return items.flatMap((item) => {
-    const fullPath = normalizePath(item.fullPath)
-    if (fullPath === root) return [{ ...item, relativePath: '', depth: 0 }]
-    if (!fullPath.startsWith(`${root}/`)) return []
-    const relativePath = fullPath.slice(root.length + 1)
-    return [{ ...item, relativePath, depth: relativePath.split('/').filter(Boolean).length }]
+    const chain = [...(item.ancestorFids ?? []), item.fid]
+    const rootIndex = chain.indexOf(rootFid)
+    if (rootIndex === -1) return []
+    if (item.fid === rootFid) return [{ ...item, relativePath: '', depth: 0 }]
+    const relativeFids = chain.slice(rootIndex + 1)
+    const relativePath = relativeFids
+      .flatMap((fid) => {
+        const entry = byFid.get(fid)
+        return entry ? [entry.name] : []
+      })
+      .join('/') || item.name
+    return [{ ...item, relativePath, depth: relativeFids.length }]
   })
+}
+
+export function mergeCloudEntries(current: CloudEntry[], incoming: CloudEntry[]): CloudEntry[] {
+  if (incoming.length === 0) return current
+  const entries = new Map(current.map((item) => [item.fid, item]))
+  for (const item of incoming) entries.set(item.fid, item)
+  return [...entries.values()]
 }
 
 export function countScopedItems(
