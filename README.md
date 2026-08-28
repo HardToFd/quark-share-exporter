@@ -64,6 +64,8 @@ Release notes contain SHA-256 checksums for the published assets.
 5. Choose per-item or bundled sharing, visibility, and expiry, then confirm the policy.
 6. Select CSV, Excel, or both, choose an output folder, and start the job.
 
+Authorization is stored in one fixed per-user location and reused by development, installed, and portable builds. Updating or switching builds does not require authorization again unless the authorization expires, is revoked, or the application data is removed.
+
 The exported files contain completed links, private-link passcodes, source paths, FIDs, policy settings, and share-creation errors.
 
 ## Recursion rules
@@ -109,6 +111,7 @@ Excel workbooks contain two worksheets: `分享链接` (Share Links) and `任务
 - OAuth and drive operations run through the bundled runtime extracted from the official [Quark Drive `quarkclouddrive` Skill v1.0.15 package](https://pdds.quark.cn/download/stfile/bbhhdeegcbcfbdjdp/quarkclouddrive-1.0.15.zip).
 - Executable runtime files are allowlisted in `vendor/quark-drive/manifest.json` and verified with SHA-256 before execution.
 - After verification, the runner applies a narrow in-memory compatibility layer that identifies the desktop application as `quarklink` and requests authorization as an unrecognized third-party agent. The verified files on disk are not rewritten.
+- The local `quarklink` authorization configuration is kept in a stable per-user data directory. Runtime updates replace only integrity-manifested executable files and never overwrite an existing account configuration.
 - Release packages exclude account configuration, access tokens, search history, and other user data.
 - Electron uses a sandboxed renderer, context isolation, disabled Node.js integration, and a minimal IPC bridge.
 - External navigation is blocked except for HTTPS links opened by the operating system.
@@ -166,12 +169,12 @@ Checks rerun against `main` on 2026-08-28:
 
 | Check | Result |
 | --- | --- |
-| `npm test` | **PASS** — 8 files, 25 tests |
+| `npm test` | **PASS** — 8 files, 26 tests |
 | `npm run typecheck` | **PASS** |
 | `npm run build` | **PASS** |
 | Dependency audit during `npm ci` | **PASS** — 0 reported vulnerabilities |
 | Browser OAuth with the `quarklink` identity | **PASS** — manually confirmed on Windows with Skill v1.0.15 |
-| Windows/macOS release packaging | **PASS** for [v0.1.7](https://github.com/HardToFd/quark-share-exporter/releases/tag/v0.1.7) |
+| Windows/macOS release packaging | **PASS** for [v0.1.8](https://github.com/HardToFd/quark-share-exporter/releases/tag/v0.1.8) |
 | Authenticated upload → share → export | **Not asserted by this snapshot**; verify with your own account and test data |
 
 ## License and disclaimer
