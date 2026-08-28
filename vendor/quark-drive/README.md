@@ -8,6 +8,10 @@ The desktop app verifies both files against `manifest.json` before invoking the
 runtime. Authentication remains owned by the official CLI and is stored in the
 CLI-selected per-user configuration location.
 
+The manifest hashes canonical upstream LF bytes. Git is configured not to
+rewrite the bundled `.cjs` files, and the verifier accepts CRLF only when its
+LF-normalized content still matches the same manifest hash.
+
 To update this runtime, first update the global Skill with its official
 `scripts/install.sh`, then replace both files and refresh their SHA-256 values.
 

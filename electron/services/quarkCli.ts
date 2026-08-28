@@ -74,8 +74,7 @@ export class QuarkCliRunner {
     const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as RuntimeManifest
     for (const [relativePath, expectedHash] of Object.entries(manifest.files)) {
       const bytes = await readFile(join(this.runtimeRoot, relativePath))
-      const actualHash = createHash('sha256').update(bytes).digest('hex')
-      if (actualHash !== expectedHash.toLowerCase()) {
+      if (!runtimeHashMatches(bytes, relativePath, expectedHash)) {
         throw new Error(`官方 CLI 运行时校验失败：${relativePath}`)
       }
     }
@@ -204,4 +203,20 @@ export class QuarkCliRunner {
     processes.delete(child)
     if (processes.size === 0) this.active.delete(jobId)
   }
+}
+
+function runtimeHashMatches(bytes: Buffer, relativePath: string, expectedHash: string): boolean {
+  const expected = expectedHash.toLowerCase()
+  if (sha256(bytes) === expected) return true
+
+  // Git may have checked JavaScript out with CRLF before .gitattributes was
+  // introduced. Treat CRLF and LF as the same source text while keeping every
+  // other byte covered by the upstream manifest hash.
+  if (!relativePath.toLowerCase().endsWith('.cjs') || !bytes.includes('\r\n')) return false
+  const canonicalBytes = Buffer.from(bytes.toString('latin1').replace(/\r\n/g, '\n'), 'latin1')
+  return sha256(canonicalBytes) === expected
+}
+
+function sha256(bytes: Buffer): string {
+  return createHash('sha256').update(bytes).digest('hex')
 }
