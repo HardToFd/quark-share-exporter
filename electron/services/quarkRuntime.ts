@@ -1,8 +1,13 @@
+import { constants } from 'node:fs'
 import { copyFile, mkdir, readFile } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve } from 'node:path'
 
 interface RuntimeManifest {
   files: Record<string, string>
+}
+
+interface PrepareRuntimeOptions {
+  legacyRuntimeRoots?: string[]
 }
 
 /**
@@ -11,7 +16,8 @@ interface RuntimeManifest {
  */
 export async function prepareUserQuarkRuntime(
   bundledRoot: string,
-  userRuntimeRoot: string
+  userRuntimeRoot: string,
+  options: PrepareRuntimeOptions = {}
 ): Promise<string> {
   const bundled = resolve(bundledRoot)
   const target = resolve(userRuntimeRoot)
@@ -21,6 +27,7 @@ export async function prepareUserQuarkRuntime(
   const manifest = parseManifest(await readFile(manifestSource, 'utf8'))
 
   await mkdir(target, { recursive: true })
+  await migrateLegacyQuarklinkConfig(target, options.legacyRuntimeRoots ?? [])
   for (const relativePath of Object.keys(manifest.files)) {
     const sourcePath = containedPath(bundled, relativePath)
     const targetPath = containedPath(target, relativePath)
@@ -32,6 +39,33 @@ export async function prepareUserQuarkRuntime(
   // runtime look current to the integrity verifier.
   await copyFile(manifestSource, containedPath(target, 'manifest.json'))
   return target
+}
+
+async function migrateLegacyQuarklinkConfig(
+  targetRuntimeRoot: string,
+  legacyRuntimeRoots: string[]
+): Promise<void> {
+  const relativeConfigPath = 'quarklink/config.json'
+  const targetConfigPath = containedPath(targetRuntimeRoot, relativeConfigPath)
+  await mkdir(dirname(targetConfigPath), { recursive: true })
+
+  for (const legacyRoot of legacyRuntimeRoots) {
+    const sourceConfigPath = containedPath(resolve(legacyRoot), relativeConfigPath)
+    if (sourceConfigPath === targetConfigPath) continue
+
+    try {
+      await copyFile(sourceConfigPath, targetConfigPath, constants.COPYFILE_EXCL)
+    } catch (error) {
+      if (isNodeError(error, 'EEXIST')) return
+      if (isNodeError(error, 'ENOENT')) continue
+      throw error
+    }
+    return
+  }
+}
+
+function isNodeError(error: unknown, code: string): boolean {
+  return error instanceof Error && 'code' in error && error.code === code
 }
 
 function parseManifest(raw: string): RuntimeManifest {

@@ -14,14 +14,20 @@ import { WorkflowService } from '../services/workflow'
 
 let mainWindow: BrowserWindow | null = null
 const smokeMode = process.argv.includes('--smoke-test')
+const persistentUserDataRoot = join(app.getPath('appData'), 'quark-share-exporter')
+
+// Keep Electron state and the official CLI account configuration stable across
+// development, installed, and portable builds.
+app.setPath('userData', persistentUserDataRoot)
 
 async function runtimeRoot(): Promise<string> {
   const bundledRoot = app.isPackaged
     ? join(process.resourcesPath, 'quark-drive')
     : join(app.getAppPath(), 'vendor', 'quark-drive')
 
-  if (!app.isPackaged) return bundledRoot
-  return prepareUserQuarkRuntime(bundledRoot, join(app.getPath('userData'), 'quark-drive'))
+  return prepareUserQuarkRuntime(bundledRoot, join(persistentUserDataRoot, 'quark-drive'), {
+    legacyRuntimeRoots: app.isPackaged ? [] : [bundledRoot]
+  })
 }
 
 function createWindow(): BrowserWindow {
