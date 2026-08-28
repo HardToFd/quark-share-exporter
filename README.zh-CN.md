@@ -26,7 +26,7 @@
 应用支持逐项分享或合并分享、公开或私密链接、永久或限时有效期，并可把结果导出为 CSV 和 Excel。
 
 > [!NOTE]
-> 桌面界面目前为简体中文。夸克分享链批量导出是独立项目，并非夸克官方产品。
+> 桌面界面目前为简体中文。夸克分享链批量导出是独立社区项目，并非夸克官方产品，与夸克不存在隶属或官方背书关系；网盘能力基于夸克网盘官方 [`quarkclouddrive` Skill v1.0.15](https://pdds.quark.cn/download/stfile/bbhhdeegcbcfbdjdp/quarkclouddrive-1.0.15.zip)。
 
 ## 主要特点
 
@@ -105,7 +105,7 @@ Excel 包含“`分享链接`”和“`任务摘要`”两个工作表。
 
 ## 安全与隐私
 
-- OAuth 和网盘操作通过从夸克网盘官方 `quarkclouddrive` Skill v1.0.15 提取的内置运行时执行。
+- OAuth 和网盘操作通过从夸克网盘官方 [`quarkclouddrive` Skill v1.0.15 安装包](https://pdds.quark.cn/download/stfile/bbhhdeegcbcfbdjdp/quarkclouddrive-1.0.15.zip)提取的内置运行时执行。
 - 可执行运行文件由 `vendor/quark-drive/manifest.json` 白名单限定，并在每次执行前进行 SHA-256 校验。
 - 完整性校验通过后，运行器会应用最小范围的内存兼容层：以 `quarklink` 标识桌面应用，并按未识别的第三方 Agent 请求授权；磁盘上的已校验文件不会被改写。
 - 发布包排除账号配置、访问令牌、搜索历史及其他用户数据。
