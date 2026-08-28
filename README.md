@@ -107,6 +107,7 @@ Excel workbooks contain two worksheets: `分享链接` (Share Links) and `任务
 
 - OAuth and drive operations run through the bundled runtime extracted from the official `quarkclouddrive` Skill v1.0.15.
 - Executable runtime files are allowlisted in `vendor/quark-drive/manifest.json` and verified with SHA-256 before execution.
+- After verification, the runner applies a narrow in-memory compatibility layer that identifies the desktop application as `quarklink` and requests authorization as an unrecognized third-party agent. The verified files on disk are not rewritten.
 - Release packages exclude account configuration, access tokens, search history, and other user data.
 - Electron uses a sandboxed renderer, context isolation, disabled Node.js integration, and a minimal IPC bridge.
 - External navigation is blocked except for HTTPS links opened by the operating system.
@@ -164,11 +165,12 @@ Checks rerun against `main` on 2026-08-28:
 
 | Check | Result |
 | --- | --- |
-| `npm test` | **PASS** — 8 files, 22 tests |
+| `npm test` | **PASS** — 8 files, 23 tests |
 | `npm run typecheck` | **PASS** |
 | `npm run build` | **PASS** |
 | Dependency audit during `npm ci` | **PASS** — 0 reported vulnerabilities |
-| Windows/macOS release packaging | **PASS** for [v0.1.5](https://github.com/HardToFd/quark-share-exporter/releases/tag/v0.1.5) |
+| Browser OAuth with the `quarklink` identity | **PASS** — manually confirmed on Windows with Skill v1.0.15 |
+| Windows/macOS release packaging | **PASS** for [v0.1.6](https://github.com/HardToFd/quark-share-exporter/releases/tag/v0.1.6) |
 | Authenticated upload → share → export | **Not asserted by this snapshot**; verify with your own account and test data |
 
 ## License and disclaimer

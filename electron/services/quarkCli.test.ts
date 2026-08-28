@@ -11,6 +11,50 @@ afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map((path) => rm(path, { recursive: true, force: true })))
 })
 
+describe('QuarkCliRunner.run', () => {
+  it('uses the QuarkLink identity and marks it as an unsure agent', async () => {
+    const runtimeRoot = await mkdtemp(join(tmpdir(), 'quark-cli-agent-test-'))
+    temporaryRoots.push(runtimeRoot)
+    await mkdir(join(runtimeRoot, 'scripts'), { recursive: true })
+
+    const script = `
+function ae(s){return "original-agent"}function Rt(s){return s}
+const loginOptions={isUnsureAgent:!1}
+process.stdout.write(JSON.stringify({
+  code:0,
+  msg:"ok",
+  data:{agentId:ae(),isUnsureAgent:loginOptions.isUnsureAgent,argv:process.argv.slice(2)},
+  action:"login",
+  type:"result"
+})+"\\n")
+`
+    const scriptHash = createHash('sha256').update(script).digest('hex')
+    await writeFile(join(runtimeRoot, 'scripts', 'quark-drive.cjs'), script)
+    await writeFile(
+      join(runtimeRoot, 'manifest.json'),
+      JSON.stringify({
+        skillVersion: 'test-skill',
+        cliVersion: 'test-cli',
+        files: { 'scripts/quark-drive.cjs': scriptHash }
+      })
+    )
+
+    const run = await new QuarkCliRunner(runtimeRoot).run('login', [], {
+      jobId: 'test-job',
+      sessionId: 'test-session',
+      sessionInput: 'test-input'
+    })
+
+    expect(run.exitCode, run.stderr).toBe(0)
+    expect(run.stderr).toBe('')
+    expect(run.result?.data).toEqual({
+      agentId: 'quarklink',
+      isUnsureAgent: true,
+      argv: ['login', '--session-input', 'test-input', '--session-id', 'test-session']
+    })
+  })
+})
+
 describe('QuarkCliRunner.listCloudFolderPage', () => {
   it('boots the verified CLI with folder and cursor arguments', async () => {
     const runtimeRoot = await mkdtemp(join(tmpdir(), 'quark-cli-list-test-'))
@@ -18,6 +62,8 @@ describe('QuarkCliRunner.listCloudFolderPage', () => {
     await mkdir(join(runtimeRoot, 'scripts'), { recursive: true })
 
     const script = `/*
+function ae(s){return "original-agent"}function Rt(s){return s}
+isUnsureAgent:!1
 .option("--category <number>"
 let l={keyword:r,size:n};
 category:e.category,page:e.page}

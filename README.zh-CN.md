@@ -107,6 +107,7 @@ Excel 包含“`分享链接`”和“`任务摘要`”两个工作表。
 
 - OAuth 和网盘操作通过从夸克网盘官方 `quarkclouddrive` Skill v1.0.15 提取的内置运行时执行。
 - 可执行运行文件由 `vendor/quark-drive/manifest.json` 白名单限定，并在每次执行前进行 SHA-256 校验。
+- 完整性校验通过后，运行器会应用最小范围的内存兼容层：以 `quarklink` 标识桌面应用，并按未识别的第三方 Agent 请求授权；磁盘上的已校验文件不会被改写。
 - 发布包排除账号配置、访问令牌、搜索历史及其他用户数据。
 - Electron 使用沙箱化渲染器、上下文隔离、禁用 Node.js 集成以及最小 IPC 桥接。
 - 除交给操作系统打开的 HTTPS 链接外，应用会阻止外部导航。
@@ -164,11 +165,12 @@ vendor/quark-drive/     带完整性清单的夸克网盘运行时
 
 | 检查项 | 结果 |
 | --- | --- |
-| `npm test` | **PASS** — 8 个测试文件、22 项测试 |
+| `npm test` | **PASS** — 8 个测试文件、23 项测试 |
 | `npm run typecheck` | **PASS** |
 | `npm run build` | **PASS** |
 | `npm ci` 期间的依赖审计 | **PASS** — 0 个已报告漏洞 |
-| Windows/macOS 发布构建 | [v0.1.5](https://github.com/HardToFd/quark-share-exporter/releases/tag/v0.1.5) **PASS** |
+| 使用 `quarklink` 标识的浏览器 OAuth | **PASS** — 已在 Windows + Skill v1.0.15 上人工确认 |
+| Windows/macOS 发布构建 | [v0.1.6](https://github.com/HardToFd/quark-share-exporter/releases/tag/v0.1.6) **PASS** |
 | 真实账号上传 → 分享 → 导出 | **本快照不作成功声明**；请使用自己的账号和测试数据验证 |
 
 ## 许可与免责声明
