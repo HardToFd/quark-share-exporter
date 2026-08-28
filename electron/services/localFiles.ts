@@ -1,12 +1,15 @@
 import { lstat, readdir } from 'node:fs/promises'
 import { basename, join, relative } from 'node:path'
 import { dialog } from 'electron'
-import type { LocalEntry, LocalSelection } from '../../src/shared/types/desktop'
+import type { InterfaceLocale, LocalEntry, LocalSelection } from '../../src/shared/types/desktop'
 
-export async function pickLocalEntries(kind: 'files' | 'folder'): Promise<LocalSelection | null> {
+export async function pickLocalEntries(kind: 'files' | 'folder', locale: InterfaceLocale): Promise<LocalSelection | null> {
+  const english = locale === 'en'
   const result = await dialog.showOpenDialog({
-    title: kind === 'folder' ? '选择要上传的文件夹' : '选择要上传的文件',
-    buttonLabel: '添加到任务',
+    title: kind === 'folder'
+      ? (english ? 'Choose folders to upload' : '选择要上传的文件夹')
+      : (english ? 'Choose files to upload' : '选择要上传的文件'),
+    buttonLabel: english ? 'Add to task' : '添加到任务',
     properties:
       kind === 'folder'
         ? ['openDirectory', 'multiSelections']

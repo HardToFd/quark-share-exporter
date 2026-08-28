@@ -2,12 +2,15 @@ import { CloudCog, File, FilePlus2, Folder, FolderOpen, FolderSearch, LoaderCirc
 import { Badge, Button, Field, Input, Segmented } from '../../../shared/ui/Primitives'
 import { formatBytes } from '../../../shared/lib/format'
 import { localPathKey } from '../../../shared/lib/localFolderRules'
+import { useI18n } from '../../../shared/i18n/I18nProvider'
+import { translateExternalMessage } from '../../../shared/i18n/messages'
 import type { LocalEntry, UploadTarget } from '../../../shared/types/desktop'
 import type { WorkspaceModel } from '../model/useWorkspaceModel'
 import { CloudDriveBrowser } from './CloudDriveBrowser'
 import { StepCard } from './StepCard'
 
 export function SourceSection({ model }: { model: WorkspaceModel }): React.JSX.Element {
+  const { locale, t } = useI18n()
   const localFiles = model.localSelection.entries.filter((entry) => entry.kind === 'file')
   const localBytes = localFiles.reduce((sum, entry) => sum + entry.size, 0)
   const entryByPath = new Map(model.localSelection.entries.map((entry) => [localPathKey(entry.path), entry]))
@@ -19,17 +22,17 @@ export function SourceSection({ model }: { model: WorkspaceModel }): React.JSX.E
   return (
     <StepCard
       step={1}
-      title="选择数据来源"
-      description="上传本机文件，或加载网盘项目后直接浏览并选择递归根目录。"
-      aside={<Badge tone="accent">{model.sourceMode === 'local' ? '本机 → 网盘' : '网盘目录'}</Badge>}
+      title={t('source.title')}
+      description={t('source.description')}
+      aside={<Badge tone="accent">{model.sourceMode === 'local' ? t('source.asideLocal') : t('source.asideCloud')}</Badge>}
     >
       <Segmented
         value={model.sourceMode}
         onChange={model.setSourceMode}
         disabled={model.running}
         options={[
-          { value: 'local', label: '本机批量上传', description: '上传后直接使用返回 FID' },
-          { value: 'cloud', label: '网盘指定目录', description: '全盘浏览 + 搜索定位' }
+          { value: 'local', label: t('source.localMode'), description: t('source.localModeDescription') },
+          { value: 'cloud', label: t('source.cloudMode'), description: t('source.cloudModeDescription') }
         ]}
       />
 
@@ -38,18 +41,18 @@ export function SourceSection({ model }: { model: WorkspaceModel }): React.JSX.E
           <div className="source-actions">
             <Button variant="secondary" onClick={() => void model.addLocal('files')} disabled={model.busy === 'local' || model.running}>
               {model.busy === 'local' ? <LoaderCircle size={16} className="spin" /> : <FilePlus2 size={16} />}
-              添加文件
+              {t('source.addFiles')}
             </Button>
             <Button variant="secondary" onClick={() => void model.addLocal('folder')} disabled={model.busy === 'local' || model.running}>
-              <FolderOpen size={16} /> 添加文件夹
+              <FolderOpen size={16} /> {t('source.addFolder')}
             </Button>
             {model.localSelection.entries.length > 0 && (
               <Button variant="ghost" onClick={model.clearLocal} disabled={model.running}>
-                <Trash2 size={15} /> 清空
+                <Trash2 size={15} /> {t('source.clear')}
               </Button>
             )}
             <div className="source-summary">
-              <strong>{localRoots.length}</strong> 个入口 · {localFiles.length} 个文件 · {formatBytes(localBytes)}
+              {t('source.summary', { roots: localRoots.length, files: localFiles.length, size: formatBytes(localBytes) })}
             </div>
           </div>
 
@@ -57,7 +60,7 @@ export function SourceSection({ model }: { model: WorkspaceModel }): React.JSX.E
 
           {model.localSelection.skippedSymlinks > 0 && (
             <div className="inline-alert inline-alert--warning">
-              <TriangleAlert size={16} /> 已跳过 {model.localSelection.skippedSymlinks} 个符号链接，避免循环目录。
+              <TriangleAlert size={16} /> {t('source.skippedSymlinks', { count: model.localSelection.skippedSymlinks })}
             </div>
           )}
           <LocalRootList roots={localRoots} entries={model.localSelection.entries} />
@@ -67,23 +70,23 @@ export function SourceSection({ model }: { model: WorkspaceModel }): React.JSX.E
           <div className="cloud-load-row">
             <Button onClick={() => void model.loadCloudDrive()} disabled={model.busy === 'scan' || model.running || !model.account.authenticated}>
               {model.busy === 'scan' ? <LoaderCircle size={16} className="spin" /> : <CloudCog size={16} />}
-              加载网盘
+              {t('source.loadDrive')}
             </Button>
-            <span>先读取网盘根目录；展开文件夹时按层加载直接子项，不再一次铺开全部后代。</span>
+            <span>{t('source.loadDriveHint')}</span>
           </div>
           <div className="cloud-search">
-            <Field label="按关键词补充定位" hint="输入目录名或文件名重新扫描；工具读取完整 artifact，不只使用 5 条预览。">
+            <Field label={t('source.searchLabel')} hint={t('source.searchHint')}>
               <div className="input-action">
                 <Input
                   value={model.cloudQuery}
                   onChange={(event) => model.setCloudQuery(event.target.value)}
-                  placeholder="例如：项目交付资料"
+                  placeholder={t('source.searchPlaceholder')}
                   maxLength={50}
                   disabled={model.running}
                 />
                 <Button onClick={() => void model.scanCloud()} disabled={!model.cloudQuery.trim() || model.busy === 'scan' || model.running}>
                   {model.busy === 'scan' ? <LoaderCircle size={16} className="spin" /> : <Search size={16} />}
-                  搜索
+                  {t('source.search')}
                 </Button>
               </div>
             </Field>
@@ -94,23 +97,23 @@ export function SourceSection({ model }: { model: WorkspaceModel }): React.JSX.E
               <div className="scan-result-bar">
                 <div>
                   <CloudCog size={17} />
-                  <span>{model.cloudScan.message}</span>
+                  <span>{translateExternalMessage(locale, model.cloudScan.message)}</span>
                 </div>
                 <div className="scan-result-bar__badges">
                   <Badge tone={model.cloudScan.artifactAvailable ? 'success' : 'warning'}>
-                    {model.cloudScan.artifactAvailable ? `${model.cloudScan.returned} 项已加载` : '仅 5 项预览'}
+                    {model.cloudScan.artifactAvailable ? t('source.scanLoaded', { count: model.cloudScan.returned }) : t('source.previewOnly')}
                   </Badge>
-                  {model.cloudScan.truncated && <Badge tone="danger">仅加载 {model.cloudScan.returned} / {model.cloudScan.total}</Badge>}
+                  {model.cloudScan.truncated && <Badge tone="danger">{t('source.truncated', { returned: model.cloudScan.returned, total: model.cloudScan.total })}</Badge>}
                 </div>
               </div>
 
-              {model.cloudScan.checkAllLink && <div className="cloud-external-link"><Button variant="ghost" onClick={() => void model.openExternal(model.cloudScan!.checkAllLink!)}><FolderSearch size={16} /> 在夸克网盘中查看本次结果</Button></div>}
-              {model.cloudScan.browseHint && <p className="browse-hint">{model.cloudScan.browseHint}</p>}
+              {model.cloudScan.checkAllLink && <div className="cloud-external-link"><Button variant="ghost" onClick={() => void model.openExternal(model.cloudScan!.checkAllLink!)}><FolderSearch size={16} /> {t('source.viewInDrive')}</Button></div>}
+              {model.cloudScan.browseHint && <p className="browse-hint">{translateExternalMessage(locale, model.cloudScan.browseHint)}</p>}
             </>
           ) : model.cloudRootLoaded ? (
             <div className="scan-result-bar">
-              <div><CloudCog size={17} /><span>{model.cloudBrowseMessage}</span></div>
-              <Badge tone="success">按层懒加载</Badge>
+              <div><CloudCog size={17} /><span>{translateExternalMessage(locale, model.cloudBrowseMessage)}</span></div>
+              <Badge tone="success">{t('source.lazyLoading')}</Badge>
             </div>
           ) : null}
 
@@ -135,16 +138,17 @@ export function SourceSection({ model }: { model: WorkspaceModel }): React.JSX.E
 }
 
 function LocalRootList({ roots, entries }: { roots: LocalEntry[]; entries: LocalEntry[] }): React.JSX.Element {
+  const { t } = useI18n()
   if (roots.length === 0) {
-    return <div className="empty-state"><FolderSearch size={22} /><span>还没有选择本机入口。可混合添加多个文件和文件夹。</span></div>
+    return <div className="empty-state"><FolderSearch size={22} /><span>{t('source.emptyLocal')}</span></div>
   }
 
   return (
     <div className="local-root-list">
       <div className="local-root-list__head">
-        <span>已选入口</span>
-        <span>上传内容</span>
-        <span>默认打链</span>
+        <span>{t('source.columnEntry')}</span>
+        <span>{t('source.columnContents')}</span>
+        <span>{t('source.columnDefaultShare')}</span>
       </div>
       {roots.map((root) => {
         const descendants = entries.filter((entry) => localPathKey(entry.rootPath) === localPathKey(root.path))
@@ -162,16 +166,16 @@ function LocalRootList({ roots, entries }: { roots: LocalEntry[]; entries: Local
             </div>
             <span className="local-root-list__contents">
               {root.kind === 'folder'
-                ? `${Math.max(0, folders.length - 1)} 个子目录 · ${files.length} 个文件 · ${formatBytes(bytes)}`
+                ? t('source.folderContents', { folders: Math.max(0, folders.length - 1), files: files.length, size: formatBytes(bytes) })
                 : formatBytes(root.size)}
             </span>
             <Badge tone={root.kind === 'folder' ? 'accent' : 'neutral'}>
-              {root.kind === 'folder' ? '根目录 1 条' : '文件 1 条'}
+              {root.kind === 'folder' ? t('source.rootLink') : t('source.fileLink')}
             </Badge>
           </div>
         )
       })}
-      <div className="local-root-list__note">文件夹内部会保持原目录结构上传；只有步骤 2 选中的目录节点会生成分享链。</div>
+      <div className="local-root-list__note">{t('source.rootNote')}</div>
     </div>
   )
 }
@@ -185,9 +189,10 @@ function UploadTargetEditor({
   onChange: (target: UploadTarget) => void
   disabled: boolean
 }): React.JSX.Element {
+  const { t } = useI18n()
   return (
     <div className="target-editor">
-      <Field label="上传目标目录" hint="QuarkLink 自定义 Agent 没有官方默认上传目录，请明确选择根目录或填写目录 FID。">
+      <Field label={t('source.targetLabel')} hint={t('source.targetHint')}>
         <select
           className="select"
           value={target.mode}
@@ -197,14 +202,14 @@ function UploadTargetEditor({
           }}
           disabled={disabled}
         >
-          <option value="default" disabled>请选择上传目标目录</option>
-          <option value="root">上传到网盘根目录</option>
-          <option value="fid">指定目录 FID</option>
+          <option value="default" disabled>{t('source.targetSelect')}</option>
+          <option value="root">{t('source.targetRoot')}</option>
+          <option value="fid">{t('source.targetFid')}</option>
         </select>
       </Field>
       {target.mode === 'fid' && (
-        <Field label="目标目录 FID">
-          <Input value={target.fid} onChange={(event) => onChange({ mode: 'fid', fid: event.target.value })} placeholder="粘贴目录 FID" disabled={disabled} />
+        <Field label={t('source.targetFidLabel')}>
+          <Input value={target.fid} onChange={(event) => onChange({ mode: 'fid', fid: event.target.value })} placeholder={t('source.targetFidPlaceholder')} disabled={disabled} />
         </Field>
       )}
     </div>

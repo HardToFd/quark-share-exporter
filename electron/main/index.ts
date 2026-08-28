@@ -3,6 +3,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type {
   CloudListRequest,
   CloudScanRequest,
+  InterfaceLocale,
   WorkflowEvent,
   WorkflowRequest
 } from '../../src/shared/types/desktop'
@@ -13,7 +14,9 @@ import { QuarkService } from '../services/quarkService'
 import { WorkflowService } from '../services/workflow'
 
 let mainWindow: BrowserWindow | null = null
-const smokeMode = process.argv.includes('--smoke-test')
+const bridgeSmokeMode = process.argv.includes('--smoke-test')
+const languageSmokeMode = process.argv.includes('--language-smoke-test')
+const smokeMode = bridgeSmokeMode || languageSmokeMode
 const persistentUserDataRoot = join(app.getPath('appData'), 'quark-share-exporter')
 
 // Keep Electron state and the official CLI account configuration stable across
@@ -44,12 +47,57 @@ function createWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      sandbox: true,
+      ...(languageSmokeMode ? { partition: `language-smoke-${process.pid}` } : {})
     }
   })
 
   if (!smokeMode) window.once('ready-to-show', () => window.show())
-  if (smokeMode) {
+  if (languageSmokeMode) {
+    let phase: 'switch' | 'reload' = 'switch'
+    window.webContents.on('did-finish-load', async () => {
+      try {
+        if (phase === 'switch') {
+          const switched = await window.webContents.executeJavaScript(`(async () => {
+            const initial = document.documentElement.lang === 'zh-CN' && document.body.innerText.includes('选择数据来源')
+            const button = Array.from(document.querySelectorAll('.language-switch button')).find((node) => node.textContent.trim() === 'EN')
+            button?.click()
+            await new Promise((resolve) => setTimeout(resolve, 150))
+            return {
+              initial,
+              english: document.documentElement.lang === 'en' && document.body.innerText.includes('Choose a data source'),
+              stored: localStorage.getItem('quark-share-exporter.locale')
+            }
+          })()`)
+          if (!switched.initial || !switched.english || switched.stored !== 'en') return app.exit(4)
+          phase = 'reload'
+          window.webContents.reload()
+          return
+        }
+
+        const persisted = await window.webContents.executeJavaScript(`(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 200))
+          const english = document.documentElement.lang === 'en' && document.body.innerText.includes('Choose a data source')
+          const button = Array.from(document.querySelectorAll('.language-switch button')).find((node) => node.textContent.trim() === '中')
+          button?.click()
+          await new Promise((resolve) => setTimeout(resolve, 150))
+          return {
+            english,
+            chinese: document.documentElement.lang === 'zh-CN' && document.body.innerText.includes('选择数据来源'),
+            stored: localStorage.getItem('quark-share-exporter.locale')
+          }
+        })()`)
+        if (!persisted.english || !persisted.chinese) {
+          console.error(`Language smoke test failed after reload: ${JSON.stringify(persisted)}`)
+          return app.exit(5)
+        }
+        console.log('Language smoke test passed: default zh-CN, switch to en, persist after reload, switch back to zh-CN')
+        app.exit(0)
+      } catch {
+        app.exit(3)
+      }
+    })
+  } else if (bridgeSmokeMode) {
     window.webContents.once('did-finish-load', async () => {
       try {
         const bridgeReady = await window.webContents.executeJavaScript(
@@ -91,11 +139,12 @@ function registerIpc(quarkRuntimeRoot: string): void {
   ipcMain.handle('runtime:status', () => quark.runtimeStatus())
   ipcMain.handle('account:info', () => quark.getAccountInfo())
   ipcMain.handle('account:login', (_event, token?: string) => quark.login(token))
-  ipcMain.handle('local:pick', (_event, kind: 'files' | 'folder') => pickLocalEntries(kind))
-  ipcMain.handle('output:pick', async () => {
+  ipcMain.handle('local:pick', (_event, kind: 'files' | 'folder', locale: InterfaceLocale) => pickLocalEntries(kind, locale))
+  ipcMain.handle('output:pick', async (_event, locale: InterfaceLocale) => {
+    const english = locale === 'en'
     const result = await dialog.showOpenDialog({
-      title: '选择导出目录',
-      buttonLabel: '使用此目录',
+      title: english ? 'Choose export folder' : '选择导出目录',
+      buttonLabel: english ? 'Use this folder' : '使用此目录',
       properties: ['openDirectory', 'createDirectory']
     })
     return result.canceled ? null : result.filePaths[0]

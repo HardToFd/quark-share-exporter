@@ -2,22 +2,24 @@ import { useMemo, type CSSProperties } from 'react'
 import { FileCheck2, Files, FolderTree, GitBranch, Link2 } from 'lucide-react'
 import { Badge, Checkbox, Field } from '../../../shared/ui/Primitives'
 import { buildLocalFolderRuleMetrics, localPathKey, type LocalFolderRuleMetric } from '../../../shared/lib/localFolderRules'
+import { useI18n } from '../../../shared/i18n/I18nProvider'
 import type { LocalEntry, LocalFolderRule } from '../../../shared/types/desktop'
 import type { WorkspaceModel } from '../model/useWorkspaceModel'
 import { StepCard } from './StepCard'
 
 export function ScopeSection({ model }: { model: WorkspaceModel }): React.JSX.Element {
   const isLocal = model.sourceMode === 'local'
+  const { t } = useI18n()
   return (
     <StepCard
       step={2}
-      title={isLocal ? '配置目录打链规则' : '定义递归范围'}
+      title={isLocal ? t('scope.localTitle') : t('scope.cloudTitle')}
       description={
         isLocal
-          ? '添加文件夹默认只分享所选根目录；每个子目录都能设置独立的向下递归深度。'
-          : '选择根目录后自定义递归深度；L0 仅根目录，L1 表示直接子项。'
+          ? t('scope.localDescription')
+          : t('scope.cloudDescription')
       }
-      aside={<Badge tone="accent"><Files size={13} /> 将生成 {model.selectedCount} 条记录</Badge>}
+      aside={<Badge tone="accent"><Files size={13} /> {t('scope.recordCount', { count: model.selectedCount })}</Badge>}
     >
       {isLocal ? <LocalFolderScopeEditor model={model} /> : <CloudScopeEditor model={model} />}
     </StepCard>
@@ -25,6 +27,7 @@ export function ScopeSection({ model }: { model: WorkspaceModel }): React.JSX.El
 }
 
 function LocalFolderScopeEditor({ model }: { model: WorkspaceModel }): React.JSX.Element {
+  const { t } = useI18n()
   const folders = model.localSelection.entries.filter((entry) => entry.kind === 'folder')
   const directFiles = model.localShareEntries.filter((entry) => entry.kind === 'file')
   const ruleByPath = new Map(model.localFolderRules.map((rule) => [localPathKey(rule.path), rule]))
@@ -38,8 +41,8 @@ function LocalFolderScopeEditor({ model }: { model: WorkspaceModel }): React.JSX
       <div className="local-scope-empty">
         <FileCheck2 size={20} />
         <div>
-          <strong>{directFiles.length > 0 ? `${directFiles.length} 个显式添加的文件将逐个打链` : '尚未添加文件夹'}</strong>
-          <span>使用“添加文件夹”后，这里会显示可独立配置的目录树。</span>
+          <strong>{directFiles.length > 0 ? t('scope.explicitFiles', { count: directFiles.length }) : t('scope.noFolders')}</strong>
+          <span>{t('scope.emptyHint')}</span>
         </div>
       </div>
     )
@@ -50,17 +53,17 @@ function LocalFolderScopeEditor({ model }: { model: WorkspaceModel }): React.JSX
       <div className="folder-rule-callout">
         <span className="folder-rule-callout__icon"><Link2 size={18} /></span>
         <div>
-          <strong>目录是分享对象，目录里的文件只是内容</strong>
-          <span>“至 L1”会为该目录和它的直接子目录分别打链；多个规则重叠时只保留一个目录节点。</span>
+          <strong>{t('scope.folderObjectTitle')}</strong>
+          <span>{t('scope.folderObjectDescription')}</span>
         </div>
-        {directFiles.length > 0 && <Badge tone="neutral">另有 {directFiles.length} 个单独文件</Badge>}
+        {directFiles.length > 0 && <Badge tone="neutral">{t('scope.extraFiles', { count: directFiles.length })}</Badge>}
       </div>
 
       <div className="folder-rule-table">
         <div className="folder-rule-table__head">
-          <span>目录节点</span>
-          <span>该节点的递归规则</span>
-          <span>规则命中</span>
+          <span>{t('scope.columnFolder')}</span>
+          <span>{t('scope.columnRule')}</span>
+          <span>{t('scope.columnImpact')}</span>
         </div>
         <div className="folder-rule-table__body">
           {folders.map((folder) => (
@@ -76,7 +79,7 @@ function LocalFolderScopeEditor({ model }: { model: WorkspaceModel }): React.JSX
         </div>
         <div className="folder-rule-table__footer">
           <FolderTree size={15} />
-          <span>默认只有所选父目录启用“仅此目录”；子目录不会自动拆成文件链接。</span>
+          <span>{t('scope.localFooter')}</span>
         </div>
       </div>
     </>
@@ -96,6 +99,7 @@ function FolderRuleRow({
   disabled: boolean
   onChange: (value: number | null | 'off') => void
 }): React.JSX.Element {
+  const { t } = useI18n()
   const availableDepth = metric?.maxDepth ?? 0
   const value = rule ? rule.maxDepth ?? 'all' : 'off'
   const impact = rule
@@ -123,29 +127,30 @@ function FolderRuleRow({
           onChange(Number(event.target.value))
         }}
         disabled={disabled}
-        aria-label={`${folder.name} 的递归打链深度`}
+        aria-label={t('scope.ruleAria', { name: folder.name })}
       >
-        <option value="off">不为此分支打链</option>
-        <option value="0">仅此目录（L0）</option>
+        <option value="off">{t('scope.ruleOff')}</option>
+        <option value="0">{t('scope.ruleRoot')}</option>
         {depthOptions.map((depth) => (
-          <option key={depth} value={depth}>此目录及向下 {depth} 层</option>
+          <option key={depth} value={depth}>{t('scope.ruleDepth', { depth })}</option>
         ))}
-        {availableDepth > 0 && <option value="all">包含全部后代目录</option>}
+        {availableDepth > 0 && <option value="all">{t('scope.ruleAll')}</option>}
       </select>
-      <Badge tone={rule ? 'accent' : 'neutral'}>{rule ? `${impact} 个目录` : '关闭'}</Badge>
+      <Badge tone={rule ? 'accent' : 'neutral'}>{rule ? t('scope.impact', { count: impact }) : t('scope.closed')}</Badge>
     </div>
   )
 }
 
 function CloudScopeEditor({ model }: { model: WorkspaceModel }): React.JSX.Element {
+  const { t } = useI18n()
   const root = model.selectedCloudRoot
   if (!root) {
     return (
       <div className="local-scope-empty">
         <FolderTree size={20} />
         <div>
-          <strong>请先在上方选择一个文件夹作为根目录</strong>
-          <span>选择后，这里会立即提供 L0、L1、L2…以及全部后代的递归深度选项。</span>
+          <strong>{t('scope.chooseRootTitle')}</strong>
+          <span>{t('scope.chooseRootDescription')}</span>
         </div>
       </div>
     )
@@ -164,15 +169,15 @@ function CloudScopeEditor({ model }: { model: WorkspaceModel }): React.JSX.Eleme
       <div className="folder-rule-callout">
         <span className="folder-rule-callout__icon"><FolderTree size={18} /></span>
         <div>
-          <strong>当前根目录：{root.name}</strong>
-          <span title={root.fullPath}>{root.fullPath} · 已加载到 L{loadedDepth}</span>
+          <strong>{t('scope.currentRoot', { name: root.name })}</strong>
+          <span title={root.fullPath}>{t('scope.loadedDepth', { path: root.fullPath, depth: loadedDepth })}</span>
         </div>
         <Badge tone={model.busy === 'scan' ? 'warning' : 'accent'}>
-          {model.busy === 'scan' ? '正在逐层加载' : `${folderCount} 目录 · ${fileCount} 文件`}
+          {model.busy === 'scan' ? t('scope.loading') : t('scope.loadedCounts', { folders: folderCount, files: fileCount })}
         </Badge>
       </div>
       <div className="form-grid form-grid--three">
-        <Field label="根目录递归深度" hint="选择深度后会自动按层读取；L0 只处理当前根目录。">
+        <Field label={t('scope.depthLabel')} hint={t('scope.depthHint')}>
           <select
             className="select"
             value={model.scope.maxDepth ?? 'all'}
@@ -181,34 +186,34 @@ function CloudScopeEditor({ model }: { model: WorkspaceModel }): React.JSX.Eleme
           >
             {depthOptions.map((depth) => (
               <option key={depth} value={depth}>
-                {depth === 0 ? '仅根目录（L0）' : `根目录及向下 ${depth} 层（L${depth}）`}
+                {depth === 0 ? t('scope.rootOnly') : t('scope.rootDepth', { depth })}
               </option>
             ))}
-            <option value="all">加载并包含全部后代</option>
+            <option value="all">{t('scope.loadAll')}</option>
           </select>
         </Field>
         <Checkbox
           checked={model.scope.includeRoot}
           onChange={(checked) => model.setScope((current) => ({ ...current, includeRoot: checked }))}
-          label="分享根目录本身"
-          description="选中根目录后默认开启"
+          label={t('scope.includeRoot')}
+          description={t('scope.includeRootDescription')}
           disabled={disabled}
         />
         <div className="scope-types">
-          <Checkbox checked={model.scope.includeFiles} onChange={(checked) => model.setScope((current) => ({ ...current, includeFiles: checked }))} label="文件" disabled={disabled} />
+          <Checkbox checked={model.scope.includeFiles} onChange={(checked) => model.setScope((current) => ({ ...current, includeFiles: checked }))} label={t('scope.files')} disabled={disabled} />
           <Checkbox
             checked={model.scope.includeFolders}
             onChange={(checked) => model.setScope((current) => ({ ...current, includeFolders: checked }))}
-            label="文件夹"
+            label={t('scope.folders')}
             disabled={disabled}
           />
         </div>
       </div>
       <div className="depth-legend">
         <GitBranch size={17} />
-        <span><b>L0</b> 选中的根目录</span>
-        <span><b>L1</b> 直接子项</span>
-        <span><b>L2+</b> 更深层文件/目录</span>
+        <span><b>L0</b> {t('scope.legendRoot')}</span>
+        <span><b>L1</b> {t('scope.legendChildren')}</span>
+        <span><b>L2+</b> {t('scope.legendDeeper')}</span>
       </div>
     </>
   )

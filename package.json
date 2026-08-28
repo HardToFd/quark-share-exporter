@@ -1,6 +1,6 @@
 {
   "name": "quark-share-exporter",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "基于夸克网盘官方 Skill 的跨平台批量上传、分享链生成与 CSV/Excel 导出工具",
   "private": true,
   "type": "module",
@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "smoke:language": "npm run build && electron . --language-smoke-test",
     "dist:win": "npm run build && electron-builder --win nsis portable --publish never",
     "dist:mac": "npm run build && electron-builder --mac dmg zip --universal --publish never"
   },

@@ -1,5 +1,7 @@
 import { ArrowRight, DatabaseZap, Layers3, Link2, X } from 'lucide-react'
 import { Badge } from '../../shared/ui/Primitives'
+import { useI18n } from '../../shared/i18n/I18nProvider'
+import { translateExternalMessage } from '../../shared/i18n/messages'
 import { useWorkspaceModel } from './model/useWorkspaceModel'
 import { ActivityRail } from './ui/ActivityRail'
 import { ExportSection } from './ui/ExportSection'
@@ -12,6 +14,7 @@ import './styles/workspace.css'
 
 export function WorkspacePage(): React.JSX.Element {
   const model = useWorkspaceModel()
+  const { locale, t } = useI18n()
 
   return (
     <div className="app-shell">
@@ -23,22 +26,22 @@ export function WorkspacePage(): React.JSX.Element {
         <div className="workspace-main">
           <section className="hero">
             <div>
-              <div className="hero__eyebrow"><Badge tone="accent">OFFICIAL SKILL RUNTIME</Badge><span>本机处理 · 不导出凭据</span></div>
-              <h1>把一整个目录，变成<br /><span>可交付的分享链清单。</span></h1>
-              <p>批量上传、递归筛选、公开/私密分享与 CSV/Excel 导出，在一条可追踪的桌面工作流里完成。</p>
+              <div className="hero__eyebrow"><Badge tone="accent">{t('hero.runtime')}</Badge><span>{t('hero.privacy')}</span></div>
+              <h1>{t('hero.titleOne')}<br /><span>{t('hero.titleTwo')}</span></h1>
+              <p>{t('hero.description')}</p>
             </div>
-            <div className="hero__flow" aria-label="工作流">
-              <FlowNode icon={<DatabaseZap size={19} />} label="上传/扫描" detail="Skill NDJSON" />
+            <div className="hero__flow" aria-label={t('hero.workflow')}>
+              <FlowNode icon={<DatabaseZap size={19} />} label={t('hero.upload')} detail="Skill NDJSON" />
               <ArrowRight size={17} />
-              <FlowNode icon={<Layers3 size={19} />} label="深度筛选" detail="Path + FID" />
+              <FlowNode icon={<Layers3 size={19} />} label={t('hero.depth')} detail="Path + FID" />
               <ArrowRight size={17} />
-              <FlowNode icon={<Link2 size={19} />} label="批量分享" detail="CSV / Excel" />
+              <FlowNode icon={<Link2 size={19} />} label={t('hero.share')} detail="CSV / Excel" />
             </div>
           </section>
 
           {model.notice && (
             <div className="notice-bar">
-              <span>{model.notice}</span>
+              <span>{translateExternalMessage(locale, model.notice)}</span>
               <button type="button" onClick={() => model.setNotice(null)}><X size={16} /></button>
             </div>
           )}

@@ -26,11 +26,12 @@ Quark Share Exporter, also called **QuarkLink**, combines upload, directory sele
 The application can create one link per item or bundle items into groups, generate public or private links, apply permanent or time-limited expiry, and export the results to CSV and Excel.
 
 > [!NOTE]
-> The desktop interface is currently in Simplified Chinese. Quark Share Exporter is an independent community project, not an official Quark product and not affiliated with or endorsed by Quark. Its drive integration is based on the official [Quark Drive `quarkclouddrive` Skill v1.0.15](https://pdds.quark.cn/download/stfile/bbhhdeegcbcfbdjdp/quarkclouddrive-1.0.15.zip).
+> The desktop interface defaults to Simplified Chinese and can be switched to English from the header; the choice is remembered across launches. Quark Share Exporter is an independent community project, not an official Quark product and not affiliated with or endorsed by Quark. Its drive integration is based on the official [Quark Drive `quarkclouddrive` Skill v1.0.15](https://pdds.quark.cn/download/stfile/bbhhdeegcbcfbdjdp/quarkclouddrive-1.0.15.zip).
 
 ## Highlights
 
 - Preserve nested local folders instead of flattening uploads.
+- Switch the complete desktop workflow between Simplified Chinese and English, including native file dialogs.
 - Configure each local directory independently as disabled, L0 only, down to a chosen depth, or all descendants.
 - Browse Quark Drive lazily: load the root first, then expand one folder level at a time.
 - Use keyword search as a secondary locator and consume the full search artifact when available.
@@ -57,7 +58,7 @@ Release notes contain SHA-256 checksums for the published assets.
 
 ## Quick start
 
-1. Launch the package for your operating system.
+1. Launch the package for your operating system. The interface starts in Simplified Chinese; use the `中 / EN` control in the header to switch languages.
 2. Authorize your Quark Drive account in the system browser. If automatic return fails, paste the authorization code into the application.
 3. Choose **Local upload** or **Cloud directory** as the source.
 4. For local uploads, explicitly choose the Quark Drive root or enter a target directory FID; then select the recursion depth and item types to share.
@@ -134,6 +135,7 @@ Run the quality gates:
 npm test
 npm run typecheck
 npm run build
+npm run smoke:language
 npm audit
 ```
 
@@ -169,12 +171,13 @@ Checks rerun against `main` on 2026-08-28:
 
 | Check | Result |
 | --- | --- |
-| `npm test` | **PASS** — 8 files, 26 tests |
+| `npm test` | **PASS** — 9 files, 30 tests |
 | `npm run typecheck` | **PASS** |
 | `npm run build` | **PASS** |
+| `npm run smoke:language` | **PASS** — default Chinese, English switch, persisted reload, and switch back |
 | Dependency audit during `npm ci` | **PASS** — 0 reported vulnerabilities |
 | Browser OAuth with the `quarklink` identity | **PASS** — manually confirmed on Windows with Skill v1.0.15 |
-| Windows/macOS release packaging | **PASS** for [v0.1.8](https://github.com/HardToFd/quark-share-exporter/releases/tag/v0.1.8) |
+| Release packaging | **PASS locally** for Windows v0.1.9; macOS pending the release workflow |
 | Authenticated upload → share → export | **Not asserted by this snapshot**; verify with your own account and test data |
 
 ## License and disclaimer

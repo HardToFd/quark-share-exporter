@@ -1,35 +1,38 @@
 import { CheckCircle2, CircleEllipsis, FileCheck2, FolderOpen, ListRestart, XCircle } from 'lucide-react'
 import { Badge, Button } from '../../../shared/ui/Primitives'
 import { formatDateTime } from '../../../shared/lib/format'
+import { useI18n } from '../../../shared/i18n/I18nProvider'
+import { translateExternalMessage, type TranslationKey, type Translator } from '../../../shared/i18n/messages'
 import type { WorkspaceModel } from '../model/useWorkspaceModel'
 
 export function ActivityRail({ model }: { model: WorkspaceModel }): React.JSX.Element {
+  const { locale, t } = useI18n()
   return (
     <aside className="activity-rail">
       <div className="activity-rail__head">
         <div>
-          <span className="eyebrow">LIVE ACTIVITY</span>
-          <h2>任务动态</h2>
+          <span className="eyebrow">{t('activity.eyebrow')}</span>
+          <h2>{t('activity.title')}</h2>
         </div>
         <Badge tone={model.running ? 'accent' : model.result ? 'success' : 'neutral'}>
-          {model.running ? <><CircleEllipsis size={13} />运行中</> : model.result ? <><CheckCircle2 size={13} />已完成</> : '待命'}
+          {model.running ? <><CircleEllipsis size={13} />{t('activity.running')}</> : model.result ? <><CheckCircle2 size={13} />{t('activity.completed')}</> : t('activity.idle')}
         </Badge>
       </div>
 
       <div className="progress-panel">
         <div className="progress-panel__meta">
-          <span>{stageLabel(model.progress.stage)}</span>
+          <span>{stageLabel(model.progress.stage, t)}</span>
           <strong>{model.progress.percent}%</strong>
         </div>
         <div className="progress-track"><span style={{ width: `${Math.max(0, Math.min(100, model.progress.percent))}%` }} /></div>
-        <p>{model.progress.message}</p>
+        <p>{translateExternalMessage(locale, model.progress.message)}</p>
       </div>
 
       {model.result && (
         <div className="result-card">
           <div className="result-card__summary">
             <FileCheck2 size={22} />
-            <div><strong>{model.result.successCount} 成功</strong><small>{model.result.failedCount} 失败 · {model.result.rowCount} 条记录</small></div>
+            <div><strong>{t('activity.result', { success: model.result.successCount })}</strong><small>{t('activity.resultDetails', { failed: model.result.failedCount, rows: model.result.rowCount })}</small></div>
           </div>
           <div className="result-files">
             {model.result.files.map((file) => (
@@ -43,12 +46,12 @@ export function ActivityRail({ model }: { model: WorkspaceModel }): React.JSX.El
 
       <div className="activity-list">
         {model.activities.length === 0 ? (
-          <div className="activity-empty"><ListRestart size={22} /><span>任务开始后，这里会显示上传、分享和导出进度。</span></div>
+          <div className="activity-empty"><ListRestart size={22} /><span>{t('activity.empty')}</span></div>
         ) : (
           [...model.activities].reverse().map((item) => (
             <div className={`activity-item activity-item--${item.level}`} key={item.id}>
               <span className="activity-item__dot">{item.level === 'error' ? <XCircle size={13} /> : item.level === 'success' ? <CheckCircle2 size={13} /> : null}</span>
-              <div><p>{item.message}</p><time>{formatDateTime(item.timestamp)}</time></div>
+              <div><p>{translateExternalMessage(locale, item.message)}</p><time>{formatDateTime(item.timestamp, locale)}</time></div>
             </div>
           ))
         )}
@@ -57,6 +60,15 @@ export function ActivityRail({ model }: { model: WorkspaceModel }): React.JSX.El
   )
 }
 
-function stageLabel(stage: string): string {
-  return ({ preflight: '任务预检', upload: '批量上传', select: '范围筛选', share: '创建分享链', export: '导出文件', complete: '任务完成', cancelled: '已取消' } as Record<string, string>)[stage] ?? stage
+function stageLabel(stage: string, t: Translator): string {
+  const keys: Record<string, TranslationKey> = {
+    preflight: 'stage.preflight',
+    upload: 'stage.upload',
+    select: 'stage.select',
+    share: 'stage.share',
+    export: 'stage.export',
+    complete: 'stage.complete',
+    cancelled: 'stage.cancelled'
+  }
+  return keys[stage] ? t(keys[stage]) : stage
 }

@@ -1,17 +1,20 @@
 import { FileSpreadsheet, FolderOutput } from 'lucide-react'
+import { useI18n } from '../../../shared/i18n/I18nProvider'
 import { Button, Field, Input, Segmented } from '../../../shared/ui/Primitives'
 import type { WorkspaceModel } from '../model/useWorkspaceModel'
 import { StepCard } from './StepCard'
 
 export function ExportSection({ model }: { model: WorkspaceModel }): React.JSX.Element {
+  const { t } = useI18n()
+
   return (
     <StepCard
       step={4}
-      title="设置导出文件"
-      description="CSV 使用 UTF-8 BOM；Excel 含“分享链接”和“任务摘要”两个工作表。"
+      title={t('export.title')}
+      description={t('export.description')}
     >
       <div className="export-grid">
-        <Field label="格式">
+        <Field label={t('export.format')}>
           <Segmented
             value={model.exportSettings.format}
             onChange={(format) => model.setExportSettings((current) => ({ ...current, format }))}
@@ -19,26 +22,26 @@ export function ExportSection({ model }: { model: WorkspaceModel }): React.JSX.E
             options={[
               { value: 'csv', label: 'CSV' },
               { value: 'xlsx', label: 'Excel' },
-              { value: 'both', label: '两种都要' }
+              { value: 'both', label: t('export.both') }
             ]}
           />
         </Field>
-        <Field label="文件名" hint="如果已存在同名文件，会自动追加序号，不覆盖原文件。">
+        <Field label={t('export.fileName')} hint={t('export.fileNameHint')}>
           <Input value={model.exportSettings.fileName} onChange={(event) => model.setExportSettings((current) => ({ ...current, fileName: event.target.value }))} disabled={model.running} />
         </Field>
       </div>
-      <Field label="导出目录">
+      <Field label={t('export.directory')}>
         <div className="input-action">
-          <Input value={model.exportSettings.outputDirectory} readOnly placeholder="请选择保存 CSV/Excel 的本机目录" />
+          <Input value={model.exportSettings.outputDirectory} readOnly placeholder={t('export.directoryPlaceholder')} />
           <Button variant="secondary" onClick={() => void model.chooseOutputDirectory()} disabled={model.running}>
-            <FolderOutput size={16} /> 选择目录
+            <FolderOutput size={16} /> {t('export.chooseDirectory')}
           </Button>
         </div>
       </Field>
       <div className="template-fields">
         <FileSpreadsheet size={18} />
-        <span>模板字段：</span>
-        <code>相对路径</code><code>FID</code><code>分享链接</code><code>提取码</code><code>有效期</code><code>状态/错误</code>
+        <span>{t('export.templateFields')}</span>
+        <code>{t('export.relativePath')}</code><code>FID</code><code>{t('export.shareLink')}</code><code>{t('export.passcode')}</code><code>{t('export.expiry')}</code><code>{t('export.statusError')}</code>
       </div>
     </StepCard>
   )
