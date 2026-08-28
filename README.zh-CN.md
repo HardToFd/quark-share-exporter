@@ -177,7 +177,7 @@ vendor/quark-drive/     带完整性清单的夸克网盘运行时
 | `npm run smoke:language` | **PASS** — 默认中文、切换英文、刷新保持、切回中文 |
 | `npm ci` 期间的依赖审计 | **PASS** — 0 个已报告漏洞 |
 | 使用 `quarklink` 标识的浏览器 OAuth | **PASS** — 已在 Windows + Skill v1.0.15 上人工确认 |
-| 发布构建 | Windows v0.1.9 **本机 PASS**；macOS 待发布工作流验证 |
+| 发布构建 | Windows v1.0.0 **本机 PASS**；macOS 待发布工作流验证 |
 | 真实账号上传 → 分享 → 导出 | **本快照不作成功声明**；请使用自己的账号和测试数据验证 |
 
 ## 许可与免责声明

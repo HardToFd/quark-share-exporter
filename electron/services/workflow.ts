@@ -116,14 +116,15 @@ export class WorkflowService {
 
       this.emit(jobId, 'stage', 'export', this.isCancelled(jobId) ? '正在导出已完成的部分结果' : '正在生成 CSV/Excel')
       const result = await exportRows(rows, request.export, request)
+      const cancelled = this.isCancelled(jobId)
       this.emit(
         jobId,
         'complete',
-        this.isCancelled(jobId) ? 'cancelled' : 'complete',
-        this.isCancelled(jobId)
+        cancelled ? 'cancelled' : 'complete',
+        cancelled
           ? `任务已取消，已导出 ${result.rowCount} 条部分结果`
           : `任务完成：成功 ${result.successCount} 项，失败 ${result.failedCount} 项`,
-        { result, level: this.isCancelled(jobId) ? 'warning' : 'success' }
+        { result, level: cancelled ? 'warning' : 'success', percent: cancelled ? undefined : 100 }
       )
     } catch (error) {
       const message = error instanceof Error ? error.message : '任务执行失败'
@@ -406,10 +407,10 @@ export class WorkflowService {
     }
     if (request.source.mode === 'cloud' && request.source.cloudItems.length === 0) throw new Error('请先扫描网盘目录')
     if (request.source.mode === 'local' && request.source.uploadTarget.mode === 'default') {
-      throw new Error('请选择上传目标目录：上传到网盘根目录，或填写目标目录 FID')
+      throw new Error('请选择上传目标目录：上传到网盘根目录，或从目录浏览器中选择文件夹')
     }
     if (request.source.mode === 'local' && request.source.uploadTarget.mode === 'fid' && !request.source.uploadTarget.fid.trim()) {
-      throw new Error('请输入目标网盘目录 FID')
+      throw new Error('请从网盘目录中选择上传目标；如需手动配置，可在高级设置中填写 FID')
     }
   }
 

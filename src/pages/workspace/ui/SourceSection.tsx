@@ -1,10 +1,11 @@
+import { useState } from 'react'
 import { CloudCog, File, FilePlus2, Folder, FolderOpen, FolderSearch, LoaderCircle, Search, Trash2, TriangleAlert } from 'lucide-react'
 import { Badge, Button, Field, Input, Segmented } from '../../../shared/ui/Primitives'
 import { formatBytes } from '../../../shared/lib/format'
 import { localPathKey } from '../../../shared/lib/localFolderRules'
 import { useI18n } from '../../../shared/i18n/I18nProvider'
 import { translateExternalMessage } from '../../../shared/i18n/messages'
-import type { LocalEntry, UploadTarget } from '../../../shared/types/desktop'
+import type { LocalEntry } from '../../../shared/types/desktop'
 import type { WorkspaceModel } from '../model/useWorkspaceModel'
 import { CloudDriveBrowser } from './CloudDriveBrowser'
 import { StepCard } from './StepCard'
@@ -56,7 +57,7 @@ export function SourceSection({ model }: { model: WorkspaceModel }): React.JSX.E
             </div>
           </div>
 
-          <UploadTargetEditor target={model.uploadTarget} onChange={model.setUploadTarget} disabled={model.running} />
+          <UploadTargetEditor model={model} />
 
           {model.localSelection.skippedSymlinks > 0 && (
             <div className="inline-alert inline-alert--warning">
@@ -180,37 +181,128 @@ function LocalRootList({ roots, entries }: { roots: LocalEntry[]; entries: Local
   )
 }
 
-function UploadTargetEditor({
-  target,
-  onChange,
-  disabled
-}: {
-  target: UploadTarget
-  onChange: (target: UploadTarget) => void
-  disabled: boolean
-}): React.JSX.Element {
+function UploadTargetEditor({ model }: { model: WorkspaceModel }): React.JSX.Element {
   const { t } = useI18n()
+  const [browserOpen, setBrowserOpen] = useState(false)
+  const { uploadTarget: target } = model
+  const selectedFolder = target.mode === 'fid'
+    ? model.selectedUploadTargetFolder
+      ?? model.cloudItems.find((item) => item.kind === 'folder' && item.fid === target.fid)
+    : undefined
+  const selectedName = selectedFolder?.name
+  const selectedPath = selectedFolder?.fullPath
+  const choice: 'default' | 'root' | 'folder' = target.mode === 'fid' ? 'folder' : target.mode
+
+  const openBrowser = (): void => {
+    setBrowserOpen(true)
+    if (model.account.authenticated && !model.cloudRootLoaded && model.busy !== 'scan') {
+      void model.loadUploadTargetFolders()
+    }
+  }
+
+  const chooseTarget = (next: 'default' | 'root' | 'folder'): void => {
+    if (next === 'root') {
+      model.setUploadTarget({ mode: 'root' })
+      setBrowserOpen(false)
+      return
+    }
+    if (target.mode !== 'fid') model.setUploadTarget({ mode: 'fid', fid: '' })
+    openBrowser()
+  }
+
   return (
-    <div className="target-editor">
+    <div className="upload-target-editor">
       <Field label={t('source.targetLabel')} hint={t('source.targetHint')}>
-        <select
-          className="select"
-          value={target.mode}
-          onChange={(event) => {
-            const mode = event.target.value
-            onChange(mode === 'fid' ? { mode: 'fid', fid: '' } : { mode } as UploadTarget)
-          }}
-          disabled={disabled}
-        >
-          <option value="default" disabled>{t('source.targetSelect')}</option>
-          <option value="root">{t('source.targetRoot')}</option>
-          <option value="fid">{t('source.targetFid')}</option>
-        </select>
+        <Segmented
+          value={choice}
+          onChange={chooseTarget}
+          disabled={model.running}
+          options={[
+            { value: 'root', label: t('source.targetRoot'), description: t('source.targetRootDescription') },
+            { value: 'folder', label: t('source.targetBrowse'), description: t('source.targetBrowseDescription') }
+          ]}
+        />
       </Field>
+
       {target.mode === 'fid' && (
-        <Field label={t('source.targetFidLabel')}>
-          <Input value={target.fid} onChange={(event) => onChange({ mode: 'fid', fid: event.target.value })} placeholder={t('source.targetFidPlaceholder')} disabled={disabled} />
-        </Field>
+        <div className="upload-target-picker">
+          <div className={`upload-target-picker__summary ${target.fid.trim() ? 'is-selected' : ''}`} aria-live="polite">
+            <span className="upload-target-picker__icon"><FolderSearch size={18} /></span>
+            <div>
+              <strong>
+                {selectedName
+                  ? t('source.targetSelected', { name: selectedName })
+                  : target.fid.trim()
+                    ? t('source.targetManualSelected')
+                    : t('source.targetNotSelected')}
+              </strong>
+              <span>{selectedPath ?? (target.fid.trim() ? t('source.targetManualPath') : t('source.targetPickerHint'))}</span>
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => browserOpen ? setBrowserOpen(false) : openBrowser()}
+              disabled={model.running || !model.account.authenticated}
+            >
+              {model.busy === 'scan' ? <LoaderCircle size={16} className="spin" /> : <FolderSearch size={16} />}
+              {browserOpen ? t('source.targetCloseBrowser') : t('source.targetOpenBrowser')}
+            </Button>
+          </div>
+
+          {browserOpen && (
+            <div className="upload-target-picker__browser">
+              {!model.account.authenticated ? (
+                <div className="inline-alert inline-alert--warning"><TriangleAlert size={16} /> {t('source.targetAuthorizeFirst')}</div>
+              ) : model.cloudRootLoaded ? (
+                <CloudDriveBrowser
+                  items={model.cloudItems}
+                  total={model.cloudItems.filter((item) => item.kind === 'folder').length}
+                  truncated={false}
+                  hierarchical
+                  selectedFid={target.fid}
+                  disabled={model.running || model.busy === 'scan'}
+                  loadedFolderFids={model.cloudLoadedFolderFids}
+                  loadingFolderFids={model.cloudLoadingFolderFids}
+                  onSelect={(fid, item) => {
+                    if (!fid || !item) {
+                      model.setUploadTarget({ mode: 'fid', fid: '' })
+                      return
+                    }
+                    model.selectUploadTargetFolder(item)
+                    setBrowserOpen(false)
+                  }}
+                  onExpand={model.loadCloudFolder}
+                  selectionKind="upload-target"
+                  showFiles={false}
+                />
+              ) : model.busy === 'scan' ? (
+                <div className="upload-target-picker__loading">
+                  <LoaderCircle size={18} className="spin" />
+                  <span>{t('source.targetLoadingDrive')}</span>
+                </div>
+              ) : (
+                <div className="upload-target-picker__loading">
+                  <FolderSearch size={18} />
+                  <Button variant="secondary" onClick={() => void model.loadUploadTargetFolders()}>
+                    {t('source.targetLoadDrive')}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <details className="upload-target-advanced">
+            <summary>{t('source.targetAdvanced')}</summary>
+            <Field label={t('source.targetFidLabel')} hint={t('source.targetFidHint')}>
+              <Input
+                value={target.fid}
+                onChange={(event) => model.setUploadTarget({ mode: 'fid', fid: event.target.value })}
+                placeholder={t('source.targetFidPlaceholder')}
+                maxLength={512}
+                disabled={model.running}
+              />
+            </Field>
+          </details>
+        </div>
       )}
     </div>
   )

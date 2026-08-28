@@ -33,7 +33,7 @@ export function WorkspacePage(): React.JSX.Element {
             <div className="hero__flow" aria-label={t('hero.workflow')}>
               <FlowNode icon={<DatabaseZap size={19} />} label={t('hero.upload')} detail="Skill NDJSON" />
               <ArrowRight size={17} />
-              <FlowNode icon={<Layers3 size={19} />} label={t('hero.depth')} detail="Path + FID" />
+              <FlowNode icon={<Layers3 size={19} />} label={t('hero.depth')} detail={t('hero.depthDetail')} />
               <ArrowRight size={17} />
               <FlowNode icon={<Link2 size={19} />} label={t('hero.share')} detail="CSV / Excel" />
             </div>

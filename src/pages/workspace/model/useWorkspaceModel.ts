@@ -19,6 +19,7 @@ import type {
 } from '../../../shared/types/desktop'
 import { localPathKey, selectLocalShareEntries } from '../../../shared/lib/localFolderRules'
 import { countScopedItems, mergeCloudEntries, rebaseCloudItems } from '../lib/workspaceData'
+import { initialWorkflowState, workflowStateAfterEvent, type WorkspaceWorkflowState } from '../lib/workflowState'
 
 const initialRuntime: RuntimeStatus = {
   available: false,
@@ -49,7 +50,8 @@ export function useWorkspaceModel() {
   const [sourceMode, setSourceMode] = useState<SourceMode>('local')
   const [localSelection, setLocalSelection] = useState<LocalSelection>({ roots: [], entries: [], skippedSymlinks: 0 })
   const [localFolderRules, setLocalFolderRules] = useState<LocalFolderRule[]>([])
-  const [uploadTarget, setUploadTarget] = useState<UploadTarget>({ mode: 'default' })
+  const [uploadTarget, setUploadTargetState] = useState<UploadTarget>({ mode: 'default' })
+  const [selectedUploadTargetFolder, setSelectedUploadTargetFolder] = useState<CloudEntry | null>(null)
   const [cloudQuery, setCloudQuery] = useState('')
   const [cloudRootFid, setCloudRootFid] = useState('')
   const [cloudScan, setCloudScan] = useState<CloudScanResult | null>(null)
@@ -84,11 +86,11 @@ export function useWorkspaceModel() {
   }))
   const previousLocale = useRef<Locale>(locale)
   const [busy, setBusy] = useState<'account' | 'local' | 'scan' | null>(null)
-  const [running, setRunning] = useState(false)
+  const [workflowState, setWorkflowState] = useState<WorkspaceWorkflowState>(initialWorkflowState)
+  const running = workflowState.status === 'running'
   const [jobId, setJobId] = useState<string | null>(null)
   const activeJob = useRef<string | null>(null)
   const [activities, setActivities] = useState<ActivityLine[]>([])
-  const [progress, setProgress] = useState({ stage: 'preflight', percent: 0, message: '等待开始' })
   const [result, setResult] = useState<ExportResult | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [manualCodeNeeded, setManualCodeNeeded] = useState(false)
@@ -156,12 +158,9 @@ export function useWorkspaceModel() {
     const unsubscribeWorkflow = bridge.onWorkflowEvent((event: WorkflowEvent) => {
       if (activeJob.current && event.jobId !== activeJob.current) return
       addActivity(event.message, event.level ?? 'info')
-      if (event.type === 'progress' || event.type === 'stage') {
-        setProgress({ stage: event.stage, percent: event.percent ?? 0, message: event.message })
-      }
+      setWorkflowState((current) => workflowStateAfterEvent(current, event))
       if (event.result) setResult(event.result)
       if (event.type === 'complete' || event.type === 'error') {
-        setRunning(false)
         activeJob.current = null
       }
     })
@@ -320,6 +319,18 @@ export function useWorkspaceModel() {
     }
   }, [])
 
+  const updateUploadTarget = useCallback((target: UploadTarget) => {
+    setUploadTargetState(target)
+    setSelectedUploadTargetFolder((current) => (
+      target.mode === 'fid' && current?.fid === target.fid ? current : null
+    ))
+  }, [])
+
+  const selectUploadTargetFolder = useCallback((folder: CloudEntry) => {
+    setUploadTargetState({ mode: 'fid', fid: folder.fid })
+    setSelectedUploadTargetFolder(folder)
+  }, [])
+
   const runCloudScan = useCallback(async (query: string) => {
     if (!bridge) return
     setBusy('scan')
@@ -342,6 +353,20 @@ export function useWorkspaceModel() {
   }, [addActivity, bridge, replaceCloudItems, resetCloudTree, selectCloudRoot])
 
   const scanCloud = useCallback(() => runCloudScan(cloudQuery), [cloudQuery, runCloudScan])
+  const loadUploadTargetFolders = useCallback(async () => {
+    if (!bridge) return
+    setBusy('scan')
+    setNotice(null)
+    try {
+      const items = await loadCloudFolder('0')
+      setCloudBrowseMessage(`已加载网盘根目录 ${items.length} 项；展开文件夹即可选择上传位置`)
+    } catch {
+      // loadCloudFolder already reports the actionable error.
+    } finally {
+      setBusy(null)
+    }
+  }, [bridge, loadCloudFolder])
+
   const loadCloudDrive = useCallback(async () => {
     if (!bridge) return
     setBusy('scan')
@@ -398,8 +423,8 @@ export function useWorkspaceModel() {
     if (!runtime.verified) return setNotice('官方 CLI 运行时尚未通过校验')
     if (!account.authenticated) return setNotice('请先完成夸克网盘授权')
     if (sourceMode === 'cloud' && !cloudRootFid) return setNotice('请先选择一个网盘文件夹作为递归根目录')
-    if (sourceMode === 'local' && uploadTarget.mode === 'default') return setNotice('请选择上传目标目录：上传到网盘根目录，或填写目标目录 FID')
-    if (sourceMode === 'local' && uploadTarget.mode === 'fid' && !uploadTarget.fid.trim()) return setNotice('请输入目标网盘目录 FID')
+    if (sourceMode === 'local' && uploadTarget.mode === 'default') return setNotice('请选择上传目标目录：上传到网盘根目录，或从目录浏览器中选择文件夹')
+    if (sourceMode === 'local' && uploadTarget.mode === 'fid' && !uploadTarget.fid.trim()) return setNotice('请从网盘目录中选择上传目标；如需手动配置，可在高级设置中填写 FID')
     if (!shareConfirmed) return setNotice('请确认公开/私密和有效期设置')
     if (!exportSettings.outputDirectory) return setNotice('请选择 CSV/Excel 导出目录')
     if (selectedCount === 0) return setNotice('当前筛选条件下没有可分享项目')
@@ -430,14 +455,17 @@ export function useWorkspaceModel() {
     try {
       setActivities([])
       setResult(null)
-      setRunning(true)
-      setProgress({ stage: 'preflight', percent: 0, message: '正在创建任务…' })
+      setWorkflowState({
+        status: 'running',
+        progress: { stage: 'preflight', percent: 0, message: '正在创建任务…' }
+      })
       const response = await bridge.startWorkflow(request)
       activeJob.current = response.jobId
       setJobId(response.jobId)
     } catch (error) {
-      setRunning(false)
-      setNotice(errorMessage(error))
+      const message = errorMessage(error)
+      setWorkflowState({ status: 'failed', progress: { stage: 'failed', percent: 0, message } })
+      setNotice(message)
     }
   }, [account.authenticated, bridge, busy, cloudItems.length, cloudRootFid, cloudScan, effectiveCloudItems, exportSettings, localFolderRules, localSelection, runtime.verified, scope, selectedCloudRoot, selectedCount, share, shareConfirmed, sourceMode, uploadTarget])
 
@@ -461,7 +489,9 @@ export function useWorkspaceModel() {
       setLocalFolderRules([])
     },
     uploadTarget,
-    setUploadTarget,
+    selectedUploadTargetFolder,
+    setUploadTarget: updateUploadTarget,
+    selectUploadTargetFolder,
     cloudQuery,
     setCloudQuery,
     cloudRootFid,
@@ -484,8 +514,9 @@ export function useWorkspaceModel() {
     setExportSettings,
     busy,
     running,
+    workflowStatus: workflowState.status,
     activities,
-    progress,
+    progress: workflowState.progress,
     result,
     notice,
     setNotice,
@@ -496,6 +527,7 @@ export function useWorkspaceModel() {
     addLocal,
     scanCloud,
     loadCloudDrive,
+    loadUploadTargetFolders,
     loadCloudFolder,
     setCloudMaxDepth,
     chooseOutputDirectory,

@@ -177,7 +177,7 @@ Checks rerun against `main` on 2026-08-28:
 | `npm run smoke:language` | **PASS** — default Chinese, English switch, persisted reload, and switch back |
 | Dependency audit during `npm ci` | **PASS** — 0 reported vulnerabilities |
 | Browser OAuth with the `quarklink` identity | **PASS** — manually confirmed on Windows with Skill v1.0.15 |
-| Release packaging | **PASS locally** for Windows v0.1.9; macOS pending the release workflow |
+| Release packaging | **PASS locally** for Windows v1.0.0; macOS pending the release workflow |
 | Authenticated upload → share → export | **Not asserted by this snapshot**; verify with your own account and test data |
 
 ## License and disclaimer

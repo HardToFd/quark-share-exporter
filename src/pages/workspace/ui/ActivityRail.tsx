@@ -14,8 +14,16 @@ export function ActivityRail({ model }: { model: WorkspaceModel }): React.JSX.El
           <span className="eyebrow">{t('activity.eyebrow')}</span>
           <h2>{t('activity.title')}</h2>
         </div>
-        <Badge tone={model.running ? 'accent' : model.result ? 'success' : 'neutral'}>
-          {model.running ? <><CircleEllipsis size={13} />{t('activity.running')}</> : model.result ? <><CheckCircle2 size={13} />{t('activity.completed')}</> : t('activity.idle')}
+        <Badge tone={model.workflowStatus === 'running' ? 'accent' : model.workflowStatus === 'completed' ? 'success' : model.workflowStatus === 'cancelled' ? 'warning' : model.workflowStatus === 'failed' ? 'danger' : 'neutral'}>
+          {model.workflowStatus === 'running'
+            ? <><CircleEllipsis size={13} />{t('activity.running')}</>
+            : model.workflowStatus === 'completed'
+              ? <><CheckCircle2 size={13} />{t('activity.completed')}</>
+              : model.workflowStatus === 'cancelled'
+                ? <><XCircle size={13} />{t('activity.cancelled')}</>
+                : model.workflowStatus === 'failed'
+                  ? <><XCircle size={13} />{t('activity.failed')}</>
+                  : t('activity.idle')}
         </Badge>
       </div>
 
@@ -68,7 +76,8 @@ function stageLabel(stage: string, t: Translator): string {
     share: 'stage.share',
     export: 'stage.export',
     complete: 'stage.complete',
-    cancelled: 'stage.cancelled'
+    cancelled: 'stage.cancelled',
+    failed: 'stage.failed'
   }
   return keys[stage] ? t(keys[stage]) : stage
 }
