@@ -164,11 +164,11 @@ vendor/quark-drive/     带完整性清单的夸克网盘运行时
 
 | 检查项 | 结果 |
 | --- | --- |
-| `npm test` | **PASS** — 8 个测试文件、19 项测试 |
+| `npm test` | **PASS** — 8 个测试文件、22 项测试 |
 | `npm run typecheck` | **PASS** |
 | `npm run build` | **PASS** |
 | `npm ci` 期间的依赖审计 | **PASS** — 0 个已报告漏洞 |
-| Windows/macOS 发布构建 | [v0.1.4](https://github.com/HardToFd/quark-share-exporter/releases/tag/v0.1.4) **PASS** |
+| Windows/macOS 发布构建 | [v0.1.5](https://github.com/HardToFd/quark-share-exporter/releases/tag/v0.1.5) **PASS** |
 | 真实账号上传 → 分享 → 导出 | **本快照不作成功声明**；请使用自己的账号和测试数据验证 |
 
 ## 许可与免责声明

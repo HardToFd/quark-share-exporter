@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { QuarkCliRunner } from './quarkCli'
 
@@ -66,5 +66,61 @@ process.stdout.write(JSON.stringify({code:0,msg:"ok",data:{argv:process.argv.sli
       '--session-id',
       'test-session'
     ])
+  })
+})
+
+describe('QuarkCliRunner.verifyRuntime', () => {
+  it('verifies the real bundled runtime against its manifest', async () => {
+    const runtime = await new QuarkCliRunner(resolve('vendor/quark-drive')).verifyRuntime()
+
+    expect(runtime.skillVersion).toBe('1.0.15')
+    expect(runtime.scriptPath).toBe(resolve('vendor/quark-drive/scripts/quark-drive.cjs'))
+  })
+
+  it('accepts a CRLF checkout when the manifest hashes canonical LF source', async () => {
+    const runtimeRoot = await mkdtemp(join(tmpdir(), 'quark-cli-crlf-test-'))
+    temporaryRoots.push(runtimeRoot)
+    await mkdir(join(runtimeRoot, 'scripts'), { recursive: true })
+
+    const canonicalScript = '#!/usr/bin/env node\nprocess.stdout.write("ok\\n")\n'
+    const expectedHash = createHash('sha256').update(canonicalScript).digest('hex')
+    await writeFile(
+      join(runtimeRoot, 'scripts', 'quark-drive.cjs'),
+      canonicalScript.replace(/\n/g, '\r\n')
+    )
+    await writeFile(
+      join(runtimeRoot, 'manifest.json'),
+      JSON.stringify({
+        skillVersion: 'test-skill',
+        cliVersion: 'test-cli',
+        files: { 'scripts/quark-drive.cjs': expectedHash }
+      })
+    )
+
+    await expect(new QuarkCliRunner(runtimeRoot).verifyRuntime()).resolves.toMatchObject({
+      skillVersion: 'test-skill',
+      cliVersion: 'test-cli'
+    })
+  })
+
+  it('still rejects runtime content changes', async () => {
+    const runtimeRoot = await mkdtemp(join(tmpdir(), 'quark-cli-tamper-test-'))
+    temporaryRoots.push(runtimeRoot)
+    await mkdir(join(runtimeRoot, 'scripts'), { recursive: true })
+
+    const expectedHash = createHash('sha256').update('expected\n').digest('hex')
+    await writeFile(join(runtimeRoot, 'scripts', 'quark-drive.cjs'), 'modified\r\n')
+    await writeFile(
+      join(runtimeRoot, 'manifest.json'),
+      JSON.stringify({
+        skillVersion: 'test-skill',
+        cliVersion: 'test-cli',
+        files: { 'scripts/quark-drive.cjs': expectedHash }
+      })
+    )
+
+    await expect(new QuarkCliRunner(runtimeRoot).verifyRuntime()).rejects.toThrow(
+      '官方 CLI 运行时校验失败：scripts/quark-drive.cjs'
+    )
   })
 })

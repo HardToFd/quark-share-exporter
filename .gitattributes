@@ -1,0 +1,2 @@
+# The runtime manifest hashes the exact upstream bytes. Never rewrite line endings.
+vendor/quark-drive/scripts/*.cjs -text

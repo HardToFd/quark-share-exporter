@@ -164,11 +164,11 @@ Checks rerun against `main` on 2026-08-28:
 
 | Check | Result |
 | --- | --- |
-| `npm test` | **PASS** — 8 files, 19 tests |
+| `npm test` | **PASS** — 8 files, 22 tests |
 | `npm run typecheck` | **PASS** |
 | `npm run build` | **PASS** |
 | Dependency audit during `npm ci` | **PASS** — 0 reported vulnerabilities |
-| Windows/macOS release packaging | **PASS** for [v0.1.4](https://github.com/HardToFd/quark-share-exporter/releases/tag/v0.1.4) |
+| Windows/macOS release packaging | **PASS** for [v0.1.5](https://github.com/HardToFd/quark-share-exporter/releases/tag/v0.1.5) |
 | Authenticated upload → share → export | **Not asserted by this snapshot**; verify with your own account and test data |
 
 ## License and disclaimer
