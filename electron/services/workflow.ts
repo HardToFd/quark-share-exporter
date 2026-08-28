@@ -405,6 +405,9 @@ export class WorkflowService {
       throw new Error('请至少启用一个目录打链规则，或添加一个单独文件')
     }
     if (request.source.mode === 'cloud' && request.source.cloudItems.length === 0) throw new Error('请先扫描网盘目录')
+    if (request.source.mode === 'local' && request.source.uploadTarget.mode === 'default') {
+      throw new Error('请选择上传目标目录：上传到网盘根目录，或填写目标目录 FID')
+    }
     if (request.source.mode === 'local' && request.source.uploadTarget.mode === 'fid' && !request.source.uploadTarget.fid.trim()) {
       throw new Error('请输入目标网盘目录 FID')
     }

@@ -187,7 +187,7 @@ function UploadTargetEditor({
 }): React.JSX.Element {
   return (
     <div className="target-editor">
-      <Field label="上传目标目录" hint="未指定时不传 parent-fid，由官方 CLI 决定默认目录；只有明确选择根目录时才传 0。">
+      <Field label="上传目标目录" hint="QuarkLink 自定义 Agent 没有官方默认上传目录，请明确选择根目录或填写目录 FID。">
         <select
           className="select"
           value={target.mode}
@@ -197,8 +197,8 @@ function UploadTargetEditor({
           }}
           disabled={disabled}
         >
-          <option value="default">Skill 默认目录（推荐）</option>
-          <option value="root">明确上传到根目录</option>
+          <option value="default" disabled>请选择上传目标目录</option>
+          <option value="root">上传到网盘根目录</option>
           <option value="fid">指定目录 FID</option>
         </select>
       </Field>

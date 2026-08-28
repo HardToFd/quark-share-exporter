@@ -90,6 +90,115 @@ describe('local folder workflow', () => {
   })
 })
 
+describe('single local file workflow', () => {
+  it('uploads, shares, and exports a selected file after the root target is confirmed', async () => {
+    const outputDirectory = await mkdtemp(join(tmpdir(), 'quark-file-workflow-'))
+    const filePath = join(outputDirectory, 'single.png')
+    const entries = [entry(filePath, filePath, 'single.png', 'file', 2_048, 0)]
+    const calls: Array<{ command: string; args: string[] }> = []
+    const events: WorkflowEvent[] = []
+
+    const runner = {
+      verifyRuntime: async () => ({ root: '', scriptPath: '', skillVersion: 'test', cliVersion: 'test' }),
+      cancel: () => true
+    } as unknown as QuarkCliRunner
+    const quark = {
+      runAuthorized: async (command: string, args: string[]): Promise<CliRunResult> => {
+        calls.push({ command, args: [...args] })
+        if (command === 'upload') {
+          const uploaded: CliEnvelope = {
+            code: 0,
+            msg: '上传成功',
+            action: 'upload',
+            type: 'list',
+            data: {
+              recordId: 'record-single',
+              fileId: 'file-single',
+              fileName: 'single.png',
+              fileSize: 2_048
+            }
+          }
+          const result = resultEnvelope('upload', { fullPath: '夸克网盘' })
+          return { envelopes: [uploaded, result], result, exitCode: 0, stderr: '' }
+        }
+        if (command === 'share') return cliResult({ share_url: 'https://pan.quark.cn/s/single' }, 'share')
+        throw new Error(`Unexpected command: ${command}`)
+      }
+    } as unknown as QuarkService
+
+    const completion = new Promise<void>((resolve) => {
+      const service = new WorkflowService(runner, quark, (event) => {
+        events.push(event)
+        if (event.type === 'complete' || event.type === 'error') resolve()
+      })
+      service.start(localRequest(filePath, entries, outputDirectory))
+    })
+
+    try {
+      await Promise.race([
+        completion,
+        new Promise<never>((_resolve, reject) => setTimeout(() => reject(new Error('workflow timeout')), 3_000))
+      ])
+
+      expect(calls[0]).toEqual({ command: 'upload', args: [filePath, '--parent-fid', '0'] })
+      expect(calls.filter((call) => call.command === 'share')).toHaveLength(1)
+      expect(events.find((event) => event.type === 'item')?.row).toMatchObject({
+        status: 'success',
+        kind: 'file',
+        name: 'single.png',
+        fid: 'file-single'
+      })
+      expect(events.at(-1)?.type).toBe('complete')
+    } finally {
+      await rm(outputDirectory, { recursive: true, force: true })
+    }
+  })
+
+  it('stops before upload when no target directory was explicitly selected', async () => {
+    const outputDirectory = await mkdtemp(join(tmpdir(), 'quark-file-target-test-'))
+    const filePath = join(outputDirectory, 'single.png')
+    const entries = [entry(filePath, filePath, 'single.png', 'file', 2_048, 0)]
+    const events: WorkflowEvent[] = []
+    let commandCalled = false
+
+    const runner = {
+      verifyRuntime: async () => ({ root: '', scriptPath: '', skillVersion: 'test', cliVersion: 'test' }),
+      cancel: () => true
+    } as unknown as QuarkCliRunner
+    const quark = {
+      runAuthorized: async (): Promise<CliRunResult> => {
+        commandCalled = true
+        throw new Error('upload should not run')
+      }
+    } as unknown as QuarkService
+
+    const completion = new Promise<void>((resolve) => {
+      const service = new WorkflowService(runner, quark, (event) => {
+        events.push(event)
+        if (event.type === 'complete' || event.type === 'error') resolve()
+      })
+      const request = localRequest(filePath, entries, outputDirectory)
+      if (request.source.mode === 'local') request.source.uploadTarget = { mode: 'default' }
+      service.start(request)
+    })
+
+    try {
+      await Promise.race([
+        completion,
+        new Promise<never>((_resolve, reject) => setTimeout(() => reject(new Error('workflow timeout')), 3_000))
+      ])
+
+      expect(commandCalled).toBe(false)
+      expect(events.at(-1)).toMatchObject({
+        type: 'error',
+        message: '请选择上传目标目录：上传到网盘根目录，或填写目标目录 FID'
+      })
+    } finally {
+      await rm(outputDirectory, { recursive: true, force: true })
+    }
+  })
+})
+
 function localRequest(root: string, entries: LocalEntry[], outputDirectory: string): WorkflowRequest {
   return {
     source: {
@@ -97,7 +206,7 @@ function localRequest(root: string, entries: LocalEntry[], outputDirectory: stri
       roots: [root],
       localEntries: entries,
       folderRules: [{ path: root, maxDepth: 0 }],
-      uploadTarget: { mode: 'default' }
+      uploadTarget: { mode: 'root' }
     },
     scope: { maxDepth: null, includeRoot: false, includeFiles: true, includeFolders: false },
     share: {
