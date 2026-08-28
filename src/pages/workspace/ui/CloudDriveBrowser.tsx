@@ -23,7 +23,9 @@ export function CloudDriveBrowser({
   loadedFolderFids,
   loadingFolderFids,
   onSelect,
-  onExpand
+  onExpand,
+  selectionKind = 'source-root',
+  showFiles = true
 }: {
   items: CloudEntry[]
   total: number
@@ -33,20 +35,26 @@ export function CloudDriveBrowser({
   disabled: boolean
   loadedFolderFids: Set<string>
   loadingFolderFids: Set<string>
-  onSelect: (fid: string) => void
+  onSelect: (fid: string, item?: CloudEntry) => void
   onExpand: (fid: string) => Promise<CloudEntry[]>
+  selectionKind?: 'source-root' | 'upload-target'
+  showFiles?: boolean
 }): React.JSX.Element {
   const { locale, t } = useI18n()
   const [filter, setFilter] = useState('')
   const [expandedFids, setExpandedFids] = useState<Set<string>>(() => new Set())
   const [visibleLimit, setVisibleLimit] = useState(PAGE_SIZE)
+  const displayItems = useMemo(
+    () => showFiles ? items : items.filter((item) => item.kind === 'folder'),
+    [items, showFiles]
+  )
   const selected = useMemo(() => items.find((item) => item.fid === selectedFid), [items, selectedFid])
-  const tree = useMemo(() => buildCloudTree(items, locale), [items, locale])
+  const tree = useMemo(() => buildCloudTree(displayItems, locale), [displayItems, locale])
   const visibleRows = useMemo(() => {
     const query = filter.trim().toLocaleLowerCase()
     if (!hierarchical || query) {
       return sortCloudEntries(
-        items.filter((item) => !query || item.name.toLocaleLowerCase().includes(query) || item.fullPath.toLocaleLowerCase().includes(query)),
+        displayItems.filter((item) => !query || item.name.toLocaleLowerCase().includes(query) || item.fullPath.toLocaleLowerCase().includes(query)),
         locale
       )
         .map((item) => ({ item, treeDepth: hierarchical ? Math.min(item.depth, 8) : 0 }))
@@ -63,7 +71,7 @@ export function CloudDriveBrowser({
     }
     for (const entry of tree.roots) visit(entry, 0)
     return rows
-  }, [expandedFids, filter, hierarchical, items, locale, tree])
+  }, [displayItems, expandedFids, filter, hierarchical, locale, tree])
 
   useEffect(() => setVisibleLimit(PAGE_SIZE), [expandedFids, filter, items])
 
@@ -90,7 +98,7 @@ export function CloudDriveBrowser({
         </div>
         <div className="cloud-browser__counts">
           <Badge tone={truncated ? 'warning' : 'success'}>
-            {truncated ? t('browser.truncatedCount', { loaded: items.length, total }) : t('browser.loadedCount', { count: items.length })}
+            {truncated ? t('browser.truncatedCount', { loaded: displayItems.length, total }) : t('browser.loadedCount', { count: displayItems.length })}
           </Badge>
           {hierarchical ? <span className="cloud-browser__tree-mode"><GitBranch size={12} /> {t('browser.hierarchy')}</span> : null}
           <span>{t('browser.folderCount', { count: tree.folderCount })}</span>
@@ -100,8 +108,13 @@ export function CloudDriveBrowser({
       {selected ? (
         <div className="cloud-browser__selection">
           <FolderCheck size={17} />
-          <div><strong>{t('browser.selectedRoot', { name: selected.name })}</strong><span>{selected.fullPath}</span></div>
-          <Button variant="ghost" onClick={() => onSelect('')} disabled={disabled}>{t('browser.cancelSelection')}</Button>
+          <div>
+            <strong>{selectionKind === 'upload-target' ? t('browser.selectedUploadTarget', { name: selected.name }) : t('browser.selectedRoot', { name: selected.name })}</strong>
+            <span>{selected.fullPath}</span>
+          </div>
+          <Button variant="ghost" onClick={() => onSelect('')} disabled={disabled}>
+            {selectionKind === 'upload-target' ? t('browser.cancelUploadTarget') : t('browser.cancelSelection')}
+          </Button>
         </div>
       ) : null}
 
@@ -144,7 +157,13 @@ export function CloudDriveBrowser({
                 <span className="cloud-browser__path" title={item.fullPath}>{item.fullPath}</span>
                 <span className="cloud-browser__meta">{item.updatedAt ? formatDateTime(item.updatedAt, locale) : '—'}</span>
                 {item.kind === 'folder'
-                  ? <Button variant="ghost" onClick={() => onSelect(item.fid)} disabled={disabled}>{item.fid === selectedFid ? t('browser.rootSelected') : t('browser.chooseRoot')}</Button>
+                  ? (
+                      <Button variant="ghost" onClick={() => onSelect(item.fid, item)} disabled={disabled}>
+                        {item.fid === selectedFid
+                          ? t(selectionKind === 'upload-target' ? 'browser.uploadTargetSelected' : 'browser.rootSelected')
+                          : t(selectionKind === 'upload-target' ? 'browser.chooseUploadTarget' : 'browser.chooseRoot')}
+                      </Button>
+                    )
                   : <span className="cloud-browser__file-mark">{t('browser.file')}</span>}
               </div>
             )

@@ -83,7 +83,7 @@ describe('local folder workflow', () => {
 
       const sharedRow = events.find((event) => event.type === 'item')?.row
       expect(sharedRow).toMatchObject({ kind: 'folder', name: 'Parent', sourcePath: root })
-      expect(events.at(-1)?.type).toBe('complete')
+      expect(events.at(-1)).toMatchObject({ type: 'complete', stage: 'complete', percent: 100 })
     } finally {
       await rm(outputDirectory, { recursive: true, force: true })
     }
@@ -191,7 +191,7 @@ describe('single local file workflow', () => {
       expect(commandCalled).toBe(false)
       expect(events.at(-1)).toMatchObject({
         type: 'error',
-        message: '请选择上传目标目录：上传到网盘根目录，或填写目标目录 FID'
+        message: '请选择上传目标目录：上传到网盘根目录，或从目录浏览器中选择文件夹'
       })
     } finally {
       await rm(outputDirectory, { recursive: true, force: true })
