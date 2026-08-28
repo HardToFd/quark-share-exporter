@@ -35,6 +35,11 @@
 .topbar__status { flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 26px; }
 .status-cluster { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .status-cluster__copy { color: #69657e; font-size: 9px; }
+.language-switch { min-height: 34px; padding: 3px; display: inline-flex; align-items: center; gap: 3px; border-radius: 10px; color: #77728f; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.075); }
+.language-switch > svg { margin: 0 3px 0 5px; }
+.language-switch button { min-width: 31px; height: 26px; padding: 0 7px; border: 0; border-radius: 7px; color: #817c96; background: transparent; font-size: 9px; font-weight: 760; }
+.language-switch button:hover { color: #c7c1df; background: rgba(255,255,255,.055); }
+.language-switch button.is-active { color: #f2efff; background: rgba(140,124,255,.18); box-shadow: inset 0 0 0 1px rgba(160,147,255,.18); }
 .account-box { display: flex; align-items: center; gap: 10px; min-width: 310px; justify-content: flex-end; }
 .account-box__avatar { width: 36px; height: 36px; display: grid; place-items: center; color: #9994b3; border-radius: 12px; border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.045); position: relative; }
 .account-box__avatar.is-online::after { content: ""; position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; border-radius: 50%; background: var(--green); border: 2px solid #111026; }

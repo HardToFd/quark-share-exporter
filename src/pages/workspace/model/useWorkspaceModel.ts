@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useI18n } from '../../../shared/i18n/I18nProvider'
+import { translate, type Locale } from '../../../shared/i18n/messages'
 import type {
   AccountInfo,
   CloudEntry,
@@ -39,7 +41,9 @@ export interface ActivityLine {
 }
 
 export function useWorkspaceModel() {
+  const { locale } = useI18n()
   const bridge = window.quarkApp
+  const dateStamp = new Date().toISOString().slice(0, 10)
   const [runtime, setRuntime] = useState(initialRuntime)
   const [account, setAccount] = useState(initialAccount)
   const [sourceMode, setSourceMode] = useState<SourceMode>('local')
@@ -63,21 +67,22 @@ export function useWorkspaceModel() {
     includeFiles: true,
     includeFolders: false
   })
-  const [share, setShare] = useState<ShareSettings>({
+  const [share, setShare] = useState<ShareSettings>(() => ({
     granularity: 'per-item',
     visibility: 'public',
     expiryType: 1,
-    titlePrefix: '夸克分享',
+    titlePrefix: translate(locale, 'defaults.shareTitle'),
     bundleSize: 100,
     concurrency: 2,
     continueOnError: true
-  })
+  }))
   const [shareConfirmed, setShareConfirmed] = useState(false)
-  const [exportSettings, setExportSettings] = useState<ExportSettings>({
+  const [exportSettings, setExportSettings] = useState<ExportSettings>(() => ({
     format: 'both',
     outputDirectory: '',
-    fileName: `夸克分享链-${new Date().toISOString().slice(0, 10)}`
-  })
+    fileName: translate(locale, 'defaults.exportName', { date: dateStamp })
+  }))
+  const previousLocale = useRef<Locale>(locale)
   const [busy, setBusy] = useState<'account' | 'local' | 'scan' | null>(null)
   const [running, setRunning] = useState(false)
   const [jobId, setJobId] = useState<string | null>(null)
@@ -87,6 +92,18 @@ export function useWorkspaceModel() {
   const [result, setResult] = useState<ExportResult | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [manualCodeNeeded, setManualCodeNeeded] = useState(false)
+
+  useEffect(() => {
+    const oldLocale = previousLocale.current
+    if (oldLocale === locale) return
+    setShare((current) => current.titlePrefix === translate(oldLocale, 'defaults.shareTitle')
+      ? { ...current, titlePrefix: translate(locale, 'defaults.shareTitle') }
+      : current)
+    setExportSettings((current) => current.fileName === translate(oldLocale, 'defaults.exportName', { date: dateStamp })
+      ? { ...current, fileName: translate(locale, 'defaults.exportName', { date: dateStamp }) }
+      : current)
+    previousLocale.current = locale
+  }, [dateStamp, locale])
 
   const addActivity = useCallback((message: string, level: ActivityLine['level'] = 'info') => {
     setActivities((current) => [
@@ -196,7 +213,7 @@ export function useWorkspaceModel() {
       setBusy('local')
       setNotice(null)
       try {
-        const picked = await bridge.pickLocalEntries(kind)
+        const picked = await bridge.pickLocalEntries(kind, locale)
         if (!picked) return
         setLocalSelection((current) => mergeLocalSelections(current, picked))
         setLocalFolderRules((current) => addDefaultFolderRules(current, picked))
@@ -214,7 +231,7 @@ export function useWorkspaceModel() {
         setBusy(null)
       }
     },
-    [addActivity, bridge]
+    [addActivity, bridge, locale]
   )
 
   const loadCloudFolder = useCallback(async (parentFid: string): Promise<CloudEntry[]> => {
@@ -365,9 +382,9 @@ export function useWorkspaceModel() {
 
   const chooseOutputDirectory = useCallback(async () => {
     if (!bridge) return
-    const directory = await bridge.pickOutputDirectory()
+    const directory = await bridge.pickOutputDirectory(locale)
     if (directory) setExportSettings((current) => ({ ...current, outputDirectory: directory }))
-  }, [bridge])
+  }, [bridge, locale])
 
   const updateShare = useCallback((patch: Partial<ShareSettings>) => {
     setShare((current) => ({ ...current, ...patch }))

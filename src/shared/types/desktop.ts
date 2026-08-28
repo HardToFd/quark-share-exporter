@@ -4,6 +4,7 @@ export type Visibility = 'public' | 'private'
 export type ShareGranularity = 'per-item' | 'bundle'
 export type ExportFormat = 'csv' | 'xlsx' | 'both'
 export type ExpiryType = 1 | 2 | 3 | 4 | 5 | 6 | 7
+export type InterfaceLocale = 'zh-CN' | 'en'
 
 export interface RuntimeStatus {
   available: boolean
@@ -204,8 +205,8 @@ export interface DesktopBridge {
   runtimeStatus(): Promise<RuntimeStatus>
   getAccountInfo(): Promise<AccountInfo>
   login(token?: string): Promise<LoginResult>
-  pickLocalEntries(kind: 'files' | 'folder'): Promise<LocalSelection | null>
-  pickOutputDirectory(): Promise<string | null>
+  pickLocalEntries(kind: 'files' | 'folder', locale: InterfaceLocale): Promise<LocalSelection | null>
+  pickOutputDirectory(locale: InterfaceLocale): Promise<string | null>
   scanCloud(request: CloudScanRequest): Promise<CloudScanResult>
   listCloudFolder(request: CloudListRequest): Promise<CloudListResult>
   startWorkflow(request: WorkflowRequest): Promise<{ jobId: string }>

@@ -1,3 +1,5 @@
+import type { Locale } from '../i18n/messages'
+
 export function formatBytes(bytes?: number): string {
   if (bytes === undefined || !Number.isFinite(bytes)) return '—'
   if (bytes === 0) return '0 B'
@@ -7,11 +9,11 @@ export function formatBytes(bytes?: number): string {
   return `${value >= 100 || index === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[index]}`
 }
 
-export function formatDateTime(value?: number | string): string {
+export function formatDateTime(value?: number | string, locale: Locale = 'zh-CN'): string {
   if (!value) return '—'
   const date = new Date(typeof value === 'number' && value < 10_000_000_000 ? value * 1000 : value)
   if (Number.isNaN(date.getTime())) return '—'
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'zh-CN', {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',

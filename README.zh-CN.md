@@ -26,11 +26,12 @@
 应用支持逐项分享或合并分享、公开或私密链接、永久或限时有效期，并可把结果导出为 CSV 和 Excel。
 
 > [!NOTE]
-> 桌面界面目前为简体中文。夸克分享链批量导出是独立社区项目，并非夸克官方产品，与夸克不存在隶属或官方背书关系；网盘能力基于夸克网盘官方 [`quarkclouddrive` Skill v1.0.15](https://pdds.quark.cn/download/stfile/bbhhdeegcbcfbdjdp/quarkclouddrive-1.0.15.zip)。
+> 桌面界面默认使用简体中文，可在顶部切换为英文，语言选择会在下次启动时保留。夸克分享链批量导出是独立社区项目，并非夸克官方产品，与夸克不存在隶属或官方背书关系；网盘能力基于夸克网盘官方 [`quarkclouddrive` Skill v1.0.15](https://pdds.quark.cn/download/stfile/bbhhdeegcbcfbdjdp/quarkclouddrive-1.0.15.zip)。
 
 ## 主要特点
 
 - 保持本机多层目录结构上传，不会把内容直接铺平。
+- 整套桌面工作流可在简体中文与英文之间切换，系统文件选择框也会同步语言。
 - 每个本机目录都能独立设置不打链、仅 L0、向下指定层级或全部后代。
 - 网盘浏览采用懒加载：先读取根目录，展开文件夹时再加载下一层。
 - 关键词搜索作为补充定位入口，并在可用时读取完整搜索 artifact。
@@ -57,7 +58,7 @@
 
 ## 快速开始
 
-1. 启动与你的操作系统匹配的版本。
+1. 启动与你的操作系统匹配的版本。界面默认中文，可通过顶部的 `中 / EN` 控件切换语言。
 2. 在系统浏览器中授权夸克网盘账号；如果自动回传失败，可把授权码粘贴到应用中。
 3. 选择“本机批量上传”或“网盘指定目录”作为数据来源。
 4. 本机上传时，明确选择网盘根目录或填写目标目录 FID，再设置递归深度以及需要分享的对象类型。
@@ -134,6 +135,7 @@ npm run dev
 npm test
 npm run typecheck
 npm run build
+npm run smoke:language
 npm audit
 ```
 
@@ -169,12 +171,13 @@ vendor/quark-drive/     带完整性清单的夸克网盘运行时
 
 | 检查项 | 结果 |
 | --- | --- |
-| `npm test` | **PASS** — 8 个测试文件、26 项测试 |
+| `npm test` | **PASS** — 9 个测试文件、30 项测试 |
 | `npm run typecheck` | **PASS** |
 | `npm run build` | **PASS** |
+| `npm run smoke:language` | **PASS** — 默认中文、切换英文、刷新保持、切回中文 |
 | `npm ci` 期间的依赖审计 | **PASS** — 0 个已报告漏洞 |
 | 使用 `quarklink` 标识的浏览器 OAuth | **PASS** — 已在 Windows + Skill v1.0.15 上人工确认 |
-| Windows/macOS 发布构建 | [v0.1.8](https://github.com/HardToFd/quark-share-exporter/releases/tag/v0.1.8) **PASS** |
+| 发布构建 | Windows v0.1.9 **本机 PASS**；macOS 待发布工作流验证 |
 | 真实账号上传 → 分享 → 导出 | **本快照不作成功声明**；请使用自己的账号和测试数据验证 |
 
 ## 许可与免责声明
