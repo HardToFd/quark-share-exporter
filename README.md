@@ -26,7 +26,7 @@ Quark Share Exporter, also called **QuarkLink**, combines upload, directory sele
 The application can create one link per item or bundle items into groups, generate public or private links, apply permanent or time-limited expiry, and export the results to CSV and Excel.
 
 > [!NOTE]
-> The desktop interface is currently in Simplified Chinese. Quark Share Exporter is an independent project, not an official Quark product.
+> The desktop interface is currently in Simplified Chinese. Quark Share Exporter is an independent community project, not an official Quark product and not affiliated with or endorsed by Quark. Its drive integration is based on the official [Quark Drive `quarkclouddrive` Skill v1.0.15](https://pdds.quark.cn/download/stfile/bbhhdeegcbcfbdjdp/quarkclouddrive-1.0.15.zip).
 
 ## Highlights
 
@@ -105,7 +105,7 @@ Excel workbooks contain two worksheets: `分享链接` (Share Links) and `任务
 
 ## Security and privacy
 
-- OAuth and drive operations run through the bundled runtime extracted from the official `quarkclouddrive` Skill v1.0.15.
+- OAuth and drive operations run through the bundled runtime extracted from the official [Quark Drive `quarkclouddrive` Skill v1.0.15 package](https://pdds.quark.cn/download/stfile/bbhhdeegcbcfbdjdp/quarkclouddrive-1.0.15.zip).
 - Executable runtime files are allowlisted in `vendor/quark-drive/manifest.json` and verified with SHA-256 before execution.
 - After verification, the runner applies a narrow in-memory compatibility layer that identifies the desktop application as `quarklink` and requests authorization as an unrecognized third-party agent. The verified files on disk are not rewritten.
 - Release packages exclude account configuration, access tokens, search history, and other user data.
