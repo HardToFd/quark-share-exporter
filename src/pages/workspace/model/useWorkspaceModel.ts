@@ -381,6 +381,8 @@ export function useWorkspaceModel() {
     if (!runtime.verified) return setNotice('官方 CLI 运行时尚未通过校验')
     if (!account.authenticated) return setNotice('请先完成夸克网盘授权')
     if (sourceMode === 'cloud' && !cloudRootFid) return setNotice('请先选择一个网盘文件夹作为递归根目录')
+    if (sourceMode === 'local' && uploadTarget.mode === 'default') return setNotice('请选择上传目标目录：上传到网盘根目录，或填写目标目录 FID')
+    if (sourceMode === 'local' && uploadTarget.mode === 'fid' && !uploadTarget.fid.trim()) return setNotice('请输入目标网盘目录 FID')
     if (!shareConfirmed) return setNotice('请确认公开/私密和有效期设置')
     if (!exportSettings.outputDirectory) return setNotice('请选择 CSV/Excel 导出目录')
     if (selectedCount === 0) return setNotice('当前筛选条件下没有可分享项目')
