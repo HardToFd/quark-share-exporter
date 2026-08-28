@@ -1,128 +1,178 @@
-# 夸克分享链批量导出
+<div align="center">
+  <img src="./build/icon.png" alt="Quark Share Exporter" width="88" height="88">
+  <h1>Quark Share Exporter</h1>
+  <p><strong>Turn local folders or existing Quark Drive content into organized, deliverable share-link lists.</strong></p>
+  <p>
+    <strong>English</strong> ·
+    <a href="./README.zh-CN.md">简体中文</a>
+  </p>
+  <p>
+    <a href="https://github.com/HardToFd/quark-share-exporter/releases/latest">Download</a> ·
+    <a href="https://github.com/HardToFd/quark-share-exporter/issues">Issues</a>
+  </p>
+</div>
 
-一个基于夸克网盘官方 `quarkclouddrive` Skill v1.0.15 的跨平台桌面工具。支持 Windows/macOS，串联本机批量上传、网盘目录筛选、分享链批量生成以及 CSV/Excel 导出。
+![Quark Share Exporter workspace](./docs/images/workspace-overview.png)
 
-## 已实现
+<p align="center"><sub>Workspace preview rendered with demo data. No live account credentials or user files are shown.</sub></p>
 
-- Electron + React + TypeScript 桌面 GUI，使用沙箱化渲染器和最小 IPC 桥接。
-- 浏览器 OAuth 授权，以及自动回传失败后的授权码粘贴入口。
-- 本机多文件/多文件夹递归上传，显示官方 NDJSON 上传进度。
-- “添加文件夹”默认只为所选根目录生成 1 条分享链，目录内文件只作为内容上传，不会被误拆成逐文件链接。
-- 所选父目录下的每个目录节点都可独立设置“不打链 / 仅此目录 / 向下 N 层 / 全部后代”，重叠规则自动按目录去重。
-- 严格区分上传目标：
-  - `Skill 默认目录`：省略 `--parent-fid`；
-  - `根目录`：只有用户明确选择时传 `--parent-fid 0`；
-  - `指定目录`：传用户填写的 FID。
-- 网盘目录模式先分页读取根目录；展开文件夹时只加载下一层，并用整组缩进、分支线和 L0/L1/L2 层级标识构建可折叠目录树。
-- 任意已加载文件夹都可选为递归根目录；选择后默认只分享根目录（L0），也可切换至 L1、L2…或全部后代，工具会自动补载所需层级。
-- 关键词搜索保留为补充定位入口，读取 `search` 命令生成的完整 artifact，而不是只用 5 条预览。
-- 网盘项目使用 `path` 中的 FID 祖先链和 `parent_fid` 判断从属关系，不把不透明 FID 路径误当成可读目录名。
-- 本机目录支持逐节点递归规则；网盘目录支持全局最大深度、是否包含根目录、仅文件/文件夹/两者。
-- 分享策略：
-  - 逐项生成独立链接；
-  - 合并成组（每组最多 100 项）；
-  - 公开链接或私密链接；
-  - 永久、1/7/30/60/100/180 天；
-  - 私密提取码由夸克服务端生成，不能在客户端自定义。
-- CSV（UTF-8 BOM）和 Excel 双格式导出。Excel 包含“分享链接”和“任务摘要”两个工作表。
-- 失败项可继续执行并写入导出文件；停止任务时保留并导出已完成的部分结果。
-- 官方 CLI 文件在运行前做 SHA-256 完整性校验，不打包账号配置、token 或搜索历史。
+## What it does
 
-## 一键工作流
+Quark Share Exporter, also called **QuarkLink**, combines upload, directory selection, share creation, and export in one Electron desktop application. It supports two practical workflows:
 
-本机来源：
+- **Local → Quark Drive:** preserve a local directory tree, upload it, and create links from the returned FIDs.
+- **Quark Drive → Export:** browse or search existing cloud content, select a recursive scope, and create links without downloading it first.
 
-```text
-选择本机文件/目录 → 配置每个目录节点的递归深度 → 创建并上传目录树 → 使用目录/文件 FID 创建分享链 → CSV/Excel
-```
+The application can create one link per item or bundle items into groups, generate public or private links, apply permanent or time-limited expiry, and export the results to CSV and Excel.
 
-网盘来源：
+> [!NOTE]
+> The desktop interface is currently in Simplified Chinese. Quark Share Exporter is an independent project, not an official Quark product.
 
-```text
-分页加载网盘根目录 → 按需展开目录 → 点选递归根节点 → 选择并自动加载深度 → 创建分享链 → CSV/Excel
-```
+## Highlights
 
-## 导出字段
+- Preserve nested local folders instead of flattening uploads.
+- Configure each local directory independently as disabled, L0 only, down to a chosen depth, or all descendants.
+- Browse Quark Drive lazily: load the root first, then expand one folder level at a time.
+- Use keyword search as a secondary locator and consume the full search artifact when available.
+- Share per item with up to three workers, or bundle up to 100 items into one link.
+- Export successful links, server-generated passcodes, source mappings, and share failures to CSV and `.xlsx`.
+- Keep completed results when a job is stopped.
+- Verify the bundled Quark Drive runtime with SHA-256 before execution.
 
-| 字段 | 说明 |
+## Download
+
+Download the current build from [GitHub Releases](https://github.com/HardToFd/quark-share-exporter/releases/latest).
+
+| Platform | Choose this asset | Distribution |
+| --- | --- | --- |
+| Windows 10/11 x64 | `*-Setup-x64.exe` | Installer |
+| Windows 10/11 x64 | `*-Portable-x64.exe` | Portable executable |
+| macOS, Intel and Apple Silicon | `*-mac-universal.dmg` | Universal disk image |
+| macOS, Intel and Apple Silicon | `*-mac-universal.zip` | Universal archive |
+
+Release notes contain SHA-256 checksums for the published assets.
+
+> [!WARNING]
+> Current Windows builds are not Authenticode-signed. Current macOS builds are not signed or notarized with an Apple Developer ID. Review the source and release checksum before running a downloaded package; operating-system reputation prompts may appear.
+
+## Quick start
+
+1. Launch the package for your operating system.
+2. Authorize your Quark Drive account in the system browser. If automatic return fails, paste the authorization code into the application.
+3. Choose **Local upload** or **Cloud directory** as the source.
+4. Select the directory root, recursion depth, and item types to share.
+5. Choose per-item or bundled sharing, visibility, and expiry, then confirm the policy.
+6. Select CSV, Excel, or both, choose an output folder, and start the job.
+
+The exported files contain completed links, private-link passcodes, source paths, FIDs, policy settings, and share-creation errors.
+
+## Recursion rules
+
+| Level | Included scope |
 | --- | --- |
-| 批次ID、状态、错误信息 | 用于任务追踪与失败重跑 |
-| 来源、本机原路径、网盘路径、相对路径 | 文件来源和层级信息 |
-| 名称、类型、深度、大小、FID | 网盘对象信息 |
-| 分享粒度、可见性、有效期 | 分享策略快照 |
-| 分享链接、提取码、创建时间 | 最终交付信息 |
-| 路径映射 | 本机同名同大小文件的匹配置信度 |
+| L0 | The selected directory itself |
+| L1 | L0 plus its direct children |
+| L2+ | Progressively deeper descendants |
+| All descendants | No configured depth limit |
 
-CSV 会防护以 `= + - @` 开头的单元格，避免在 Excel 中被解释为公式。已有同名导出文件不会被覆盖，工具会自动追加序号。
+For a locally selected folder, the default rule creates **one link for the root folder**. Files inside the folder are uploaded as its contents and are not automatically split into separate links. Enable deeper directory rules or add files explicitly when individual links are required.
 
-## 目录加载边界
+For existing cloud content, you can include or exclude the selected root and filter files, folders, or both. Unloaded levels are fetched on demand before execution.
 
-网盘浏览器通过官方 CLI 的已签名请求栈分页调用目录列表能力；每次只读取某个父目录的直接子项，并使用服务端游标读完该层。因此：
+## Sharing and export
 
-- 首次只渲染网盘根目录，展开一个文件夹才会加载它的下一层；
-- 选择 L1、L2…或全部后代时，会按层自动加载尚未读取的目录；
-- 单个父目录最多读取 200 页，超过时会明确报错，不会把不完整结果当成完整目录；
-- 浏览器初始渲染 250 行，可连续“显示更多”，避免大量 DOM 阻塞界面；
-- 关键词搜索仍使用完整 artifact，单次最多 3000 项；当服务端总数更大时会显示“已加载 / 总计”。
+| Setting | Supported values |
+| --- | --- |
+| Granularity | Per item, or bundled groups of 1–100 items |
+| Visibility | Public, or private with a Quark-generated passcode |
+| Expiry | Permanent, 1, 7, 30, 60, 100, or 180 days |
+| Failure policy | Stop, or continue and record failed share attempts |
+| Export | CSV, Excel, or both |
 
-本机上传链路不受上述搜索上限影响，分享对象直接来自上传成功事件返回的 FID。
+Exports include batch and status fields, local/cloud paths, item metadata, FIDs, the selected share policy, URLs, passcodes, timestamps, and errors. CSV uses UTF-8 with a BOM and guards cells beginning with `=`, `+`, `-`, or `@` against spreadsheet formula injection. Existing files are not overwritten; a numeric suffix is added automatically.
 
-## 本地开发
+Excel workbooks contain two worksheets: `分享链接` (Share Links) and `任务摘要` (Task Summary).
 
-要求：Node.js 24+。
+## Limits and safeguards
+
+- Keyword search loads at most 3,000 items per request and warns when the server reports a larger result set.
+- Folder browsing stops with an explicit error if one parent exceeds the 200-page safety limit.
+- Symbolic links are skipped during local inventory to avoid recursive directory loops.
+- Only uploaded items that receive a valid FID can proceed to sharing. Upload failures are logged; share-creation failures also appear in the export.
+- Cancelling a job stops active CLI processes and exports already completed share rows when any exist.
+- Private-link passcodes are generated by Quark and cannot be customized in the application.
+- Live behavior depends on account permissions, service availability, and upstream API behavior. Automated tests and launch checks do not replace an authenticated end-to-end run in your environment.
+
+## Security and privacy
+
+- OAuth and drive operations run through the bundled runtime extracted from the official `quarkclouddrive` Skill v1.0.15.
+- Executable runtime files are allowlisted in `vendor/quark-drive/manifest.json` and verified with SHA-256 before execution.
+- Release packages exclude account configuration, access tokens, search history, and other user data.
+- Electron uses a sandboxed renderer, context isolation, disabled Node.js integration, and a minimal IPC bridge.
+- External navigation is blocked except for HTTPS links opened by the operating system.
+- Sharing cannot begin until visibility and expiry are explicitly confirmed.
+
+## Development
+
+Requires Node.js 24 or later and its bundled npm.
 
 ```bash
-npm install
+git clone https://github.com/HardToFd/quark-share-exporter.git
+cd quark-share-exporter
+npm ci
 npm run dev
 ```
 
-常用校验：
+Run the quality gates:
 
 ```bash
-npm run typecheck
 npm test
+npm run typecheck
 npm run build
 npm audit
 ```
 
-## 打包
-
-Windows：
+Create desktop packages:
 
 ```bash
-npm run dist:win
+npm run dist:win  # Windows: installer and portable executable
+npm run dist:mac  # macOS: universal DMG and ZIP; run on macOS
 ```
 
-生成 NSIS 安装包和便携版 EXE，输出到 `release/`。当前工程不含 Windows 代码签名证书，外部分发前应配置 Authenticode 签名。
+Build output is written to `release/`. Tagged releases and manual release runs use `.github/workflows/build-desktop.yml` to test, type-check, package, and upload Windows and macOS assets.
 
-macOS：
-
-```bash
-npm run dist:mac
-```
-
-在 macOS 主机上生成同时支持 Intel 与 Apple Silicon 的 Universal DMG/ZIP。仓库同时提供 `.github/workflows/build-desktop.yml`，会在 Windows/macOS runner 分别构建。electron-builder 不支持在 Windows 主机上生成 macOS 包；当前配置也不包含 Apple Developer ID 签名与 notarization，正式对外分发前应在 macOS 构建环境配置签名证书。
-
-## 工程结构
+<details>
+<summary><strong>Repository layout</strong></summary>
 
 ```text
 electron/
-  main/                 Electron 窗口与 IPC 注册
-  preload/              沙箱化最小桥接
-  services/             CLI、认证、工作流、导出、文件清单
+  main/                 Electron window and IPC registration
+  preload/              Sandboxed renderer bridge
+  services/             Runtime, authentication, cloud data, workflow, export
 src/
-  app/                  应用入口
-  pages/workspace/      工作台页面、模型、页面 UI 与样式
-  shared/               通用类型、格式化与基础控件
-vendor/quark-drive/     官方 CLI 运行时与 SHA-256 清单（不含账号数据）
+  app/                  React application entry
+  pages/workspace/      Workspace page, state model, UI, and styles
+  shared/               Shared types, utilities, and UI primitives
+vendor/quark-drive/     Integrity-manifested Quark Drive runtime
 ```
 
-## 隐私与安全
+</details>
 
-- OAuth 和网盘操作由官方 CLI 执行。
-- 安装版与便携版只打包官方 CLI 运行文件；首次启动会将其同步到当前 Windows 用户的数据目录，后续升级保留该用户的授权配置。
-- 应用不读取、显示或导出 access token。
-- 渲染器启用 `sandbox: true`、`contextIsolation: true`、`nodeIntegration: false`。
-- 外部链接只允许 HTTPS，并交给系统浏览器打开。
-- 符号链接不会递归上传，避免目录环。
-- 分享设置必须在开始前由用户显式确认。
+## Project status
+
+Checks rerun against `main` on 2026-08-28:
+
+| Check | Result |
+| --- | --- |
+| `npm test` | **PASS** — 8 files, 19 tests |
+| `npm run typecheck` | **PASS** |
+| `npm run build` | **PASS** |
+| Dependency audit during `npm ci` | **PASS** — 0 reported vulnerabilities |
+| Windows/macOS release packaging | **PASS** for [v0.1.4](https://github.com/HardToFd/quark-share-exporter/releases/tag/v0.1.4) |
+| Authenticated upload → share → export | **Not asserted by this snapshot**; verify with your own account and test data |
+
+## License and disclaimer
+
+Quark Share Exporter is licensed under the [Apache License 2.0](LICENSE). Third-party components remain subject to their respective licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution, including the bundled official Quark Drive runtime.
+
+Quark Share Exporter is not affiliated with or endorsed by Quark. Use it only with content you are authorized to access and share, and comply with applicable Quark Drive terms and local laws.

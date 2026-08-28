@@ -6,7 +6,7 @@
   "type": "module",
   "main": "./out/main/index.js",
   "author": "Codex",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "scripts": {
     "assets": "node scripts/generate-icon.mjs",
     "dev": "npm run assets && electron-vite dev",
@@ -51,7 +51,10 @@
     },
     "files": [
       "out/**/*",
-      "package.json"
+      "package.json",
+      "LICENSE",
+      "NOTICE",
+      "THIRD_PARTY_NOTICES.md"
     ],
     "extraResources": [
       {
@@ -62,6 +65,18 @@
           "README.md",
           "scripts/**/*"
         ]
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE.txt"
+      },
+      {
+        "from": "NOTICE",
+        "to": "NOTICE.txt"
+      },
+      {
+        "from": "THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
       }
     ],
     "artifactName": "QuarkShareExporter-${version}-${os}-${arch}.${ext}",
