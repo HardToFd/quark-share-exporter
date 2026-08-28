@@ -1,6 +1,7 @@
 node_modules/
 .electron-builder-cache/
 vendor/quark-drive/codex/
+vendor/quark-drive/quarklink/
 out/
 release/
 outputs/

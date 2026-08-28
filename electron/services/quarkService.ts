@@ -37,7 +37,7 @@ export class QuarkService {
         verified: true,
         skillVersion: runtime.skillVersion,
         cliVersion: runtime.cliVersion,
-        message: '官方 CLI 运行时完整性校验通过'
+        message: '官方 CLI 完整性校验通过，QuarkLink 身份适配已启用'
       }
     } catch (error) {
       return {

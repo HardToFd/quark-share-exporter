@@ -4,6 +4,31 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { NdjsonAccumulator, type CliEnvelope } from './ndjson'
 
+const AGENT_IDENTITY_PATCH = `
+const agentDetectorStart=source.indexOf('function ae(s){')
+const agentDetectorEnd=source.indexOf('}function Rt(s){',agentDetectorStart)
+if(agentDetectorStart<0||agentDetectorEnd<0)throw new Error('Unsupported official CLI agent detector layout')
+source=source.slice(0,agentDetectorStart)+'function ae(s){return"quarklink"}'+source.slice(agentDetectorEnd+1)
+const unsureAgentFlag='isUnsureAgent:!1'
+if(source.split(unsureAgentFlag).length-1!==1)throw new Error('Unsupported official CLI unsure-agent layout')
+source=source.replace(unsureAgentFlag,'isUnsureAgent:!0')
+`.trim()
+
+const CLI_BOOTSTRAP = `
+const fs=require('node:fs')
+const path=require('node:path')
+const Module=require('node:module')
+const scriptPath=process.argv[1]
+if(!scriptPath)throw new Error('Missing verified CLI script path')
+process.argv=[process.execPath,scriptPath,...process.argv.slice(2)]
+let source=fs.readFileSync(scriptPath,'utf8')
+${AGENT_IDENTITY_PATCH}
+const runner=new Module(scriptPath,module)
+runner.filename=scriptPath
+runner.paths=Module._nodeModulePaths(path.dirname(scriptPath))
+runner._compile(source,scriptPath)
+`.trim()
+
 const CLOUD_LIST_BOOTSTRAP = `
 const fs=require('node:fs')
 const path=require('node:path')
@@ -12,6 +37,7 @@ const scriptPath=process.argv[1]
 if(!scriptPath)throw new Error('Missing verified CLI script path')
 process.argv=[process.execPath,scriptPath,...process.argv.slice(2)]
 let source=fs.readFileSync(scriptPath,'utf8')
+${AGENT_IDENTITY_PATCH}
 const patches=[
   ['.option("--category <number>"','.option("--parent-fid <fid>","父目录 FID").option("--cursor <token>","分页游标").option("--category <number>"'],
   ['let l={keyword:r,size:n};','let l={keyword:r,size:n,parent_fid:e.parentFid,query_cursor:e.cursor};'],
@@ -90,7 +116,7 @@ export class QuarkCliRunner {
 
   async run(command: string, args: string[], options: CliRunOptions): Promise<CliRunResult> {
     const runtime = await this.verifyRuntime()
-    return this.execute([runtime.scriptPath, command, ...args], runtime, options)
+    return this.execute(['-e', CLI_BOOTSTRAP, runtime.scriptPath, command, ...args], runtime, options)
   }
 
   async listCloudFolderPage(

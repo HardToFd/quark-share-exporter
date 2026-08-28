@@ -1,6 +1,6 @@
 {
   "name": "quark-share-exporter",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "基于夸克网盘官方 Skill 的跨平台批量上传、分享链生成与 CSV/Excel 导出工具",
   "private": true,
   "type": "module",
